@@ -192,6 +192,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  internet_connection_checker:
+    dependency: "direct main"
+    description:
+      name: internet_connection_checker
+      sha256: "1c683e63e89c9ac66a40748b1b20889fd9804980da732bf2b58d6d5456c8e876"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0+1"
   leak_tracker:
     dependency: transitive
     description:
@@ -469,14 +477,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  sms_retriever:
-    dependency: "direct main"
-    description:
-      name: sms_retriever
-      sha256: "44825fa14762bdce21292cd8649b59065b29f97f4f39180bca7b27a2105f6640"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0"
   source_span:
     dependency: transitive
     description:

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/scam_provider.dart';
+import '../models/scam_result.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +24,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void dispose() {
+    _smsController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -37,6 +44,41 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                // Error Display
+                if (scamProvider.hasError)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error, color: Colors.red.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            scamProvider.error!,
+                            style: TextStyle(
+                              color: Colors.red.shade700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () => scamProvider.clearError(),
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
                 // Quick Check Card
                 Card(
                   elevation: 8,
@@ -133,8 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   size: 32,
                                 ),
                                 title: Text(
-                                    scan['text'].toString().substring(0, 50) +
-                                        '...'),
+                                    '${scan['text'].toString().substring(0, 50)}...'),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -177,9 +218,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _checkScam() {
-    if (_smsController.text.isNotEmpty) {
-      context.read<ScamProvider>().checkScam(_smsController.text);
+    final text = _smsController.text.trim();
+    if (text.isNotEmpty) {
+      context.read<ScamProvider>().checkScam(text);
       _smsController.clear();
+    } else {
+      // Show a snackbar or error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter an SMS text to analyze'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
   }
 
