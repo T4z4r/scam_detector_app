@@ -10,7 +10,7 @@ class ScamProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _lastSms;
   String? _error;
-  StreamSubscription<String?>? _smsSubscription;
+  StreamSubscription<SmsMessage>? _smsSubscription;
 
   List<Map<String, dynamic>> get recentScans => _recentScans;
   bool get isLoading => _isLoading;
@@ -76,16 +76,56 @@ class ScamProvider with ChangeNotifier {
         return;
       }
 
-      // Note: Automatic SMS monitoring is limited due to privacy restrictions
-      // This implementation focuses on manual SMS analysis for security
       _error = null;
       notifyListeners();
 
-      // You can implement manual SMS monitoring here if needed
-      // or rely on user manually pasting SMS text
+      // Start listening to incoming SMS messages
+      final smsStream = SmsService.getNewSmsStream();
+      _smsSubscription = smsStream.listen((smsMessage) {
+        // Automatically analyze incoming SMS
+        _analyzeIncomingSms(smsMessage.body, smsMessage.sender);
+      });
     } catch (e) {
       _error = 'Failed to setup SMS monitoring: $e';
       notifyListeners();
+    }
+  }
+
+  // Analyze incoming SMS automatically
+  Future<void> _analyzeIncomingSms(String text, String sender) async {
+    try {
+      // Don't analyze empty messages
+      if (text.trim().isEmpty) return;
+
+      final result = await ApiService.checkScam(text.trim(), sender.trim());
+
+      // Add to recent scans
+      _recentScans.insert(0, {
+        'text': text.trim(),
+        'sender': sender.trim(),
+        'result': result,
+        'timestamp': DateTime.now(),
+        'isAutoDetected': true,
+      });
+
+      // Keep only last 50 scans
+      if (_recentScans.length > 50) {
+        _recentScans = _recentScans.take(50).toList();
+      }
+
+      // Show notification for high-confidence scam detection
+      if (result.label == 'scam' && result.confidence > 80.0) {
+        await NotificationService.showScamAlert(
+          title: '🚨 AUTO-DETECTED SCAM!',
+          body:
+              '${result.alert}\nConfidence: ${result.confidence.toStringAsFixed(1)}%\n\nSender: $sender',
+          payload: text,
+        );
+      }
+
+      notifyListeners();
+    } catch (e) {
+      print('Failed to analyze incoming SMS: $e');
     }
   }
 

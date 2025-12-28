@@ -13,6 +13,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _smsController = TextEditingController();
+  bool _autoMonitoringEnabled = false;
 
   @override
   void initState() {
@@ -121,11 +122,41 @@ class _HomeScreenState extends State<HomeScreen> {
                               border: Border.all(color: Colors.blue.shade200),
                             ),
                             child: Text(
-                              'Latest SMS: ${scamProvider.lastSms!.substring(0, scamProvider.lastSms!.length.clamp(0, 100))}...',
+                              'Latest SMS: ${_truncateText(scamProvider.lastSms!)}',
                               style: const TextStyle(fontSize: 12),
                             ),
                           ),
                         ],
+                        const SizedBox(height: 12),
+                        SwitchListTile(
+                          title:
+                              const Text('Auto-detect scams in incoming SMS'),
+                          subtitle: const Text(
+                              'Automatically analyze incoming messages'),
+                          value: _autoMonitoringEnabled,
+                          onChanged: (bool value) {
+                            setState(() {
+                              _autoMonitoringEnabled = value;
+                            });
+                            if (value) {
+                              context.read<ScamProvider>().startSmsMonitoring();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('SMS monitoring enabled'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('SMS monitoring disabled'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                            }
+                          },
+                          activeColor: Colors.green,
+                        ),
                       ],
                     ),
                   ),
@@ -175,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   size: 32,
                                 ),
                                 title: Text(
-                                    '${scan['text'].toString().substring(0, 50)}...'),
+                                    _truncateText(scan['text'].toString())),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -215,6 +246,14 @@ class _HomeScreenState extends State<HomeScreen> {
         label: const Text('Quick Scan'),
       ),
     );
+  }
+
+  String _truncateText(String text) {
+    const maxLength = 50;
+    if (text.length <= maxLength) {
+      return text;
+    }
+    return '${text.substring(0, maxLength)}...';
   }
 
   void _checkScam() {

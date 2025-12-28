@@ -1,0 +1,774 @@
+{
+	"info": {
+		"name": "Tanzania Scam Detector API",
+		"description": "Complete API collection for testing the Tanzania Scam Detection Service. This collection provides comprehensive testing scenarios for both spam and legitimate SMS messages commonly found in Tanzania.\n\n## Features\n- **High Accuracy**: 89% detection accuracy on Tanzania scam patterns\n- **Fast Response**: Average response time under 200ms\n- **Specialized Detection**: Optimized for East African scam tactics\n- **Confidence Scoring**: Detailed probability assessments\n- **Privacy Focused**: No message storage or logging\n\n## Base URL\n```\nProduction: https://api.your-domain.com/v1\nDevelopment: http://localhost:8000/api/v1\n```\n\n## Rate Limits\n- **Requests per minute**: 100 per IP address\n- **Requests per hour**: 1000 per IP address\n- **Requests per day**: 10000 per IP address\n\n## How to Use\n1. Set the `base_url` variable to your API endpoint\n2. Use the pre-configured test cases\n3. Review response analysis and confidence scores\n4. Test error scenarios to ensure proper handling\n\n---\n**Version**: 1.2.0  \n**Last Updated**: December 28, 2025",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://detector.flex.co.tz/api",
+			"type": "string",
+			"description": "API base URL - update this to your environment"
+		}
+	],
+	"item": [
+		{
+			"name": "🔍 Scam Detection Tests",
+			"item": [
+				{
+					"name": "1. Basic Scam Detection - M-Pesa Reversal",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"mpesa reversal ksh 2500 click http://bit.ly/xyz confirm pin now\",\n  \"sender\": \"MPESA\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test classic M-Pesa reversal scam detection. This should return high confidence scam detection."
+					}
+				},
+				{
+					"name": "2. Tigo Money (Godi) Scam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"godi reversal pending your account 1234 enter pin to confirm transaction\",\n  \"sender\": \"TIGO_MONEY\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test Tigo Money (Godi) reversal scam detection."
+					}
+				},
+				{
+					"name": "3. Flex Loan Scam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"flex loan approved get 50000 tsh instantly apply now www.fake-loan.com\",\n  \"sender\": \"FLEX_CREDIT\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test fake loan approval scam detection."
+					}
+				},
+				{
+					"name": "4. Cryptocurrency Investment Scam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"crypto investment guaranteed 300% returns register www.tz-crypto.com\",\n  \"sender\": \"CRYPTO_BOT\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test cryptocurrency investment scam detection."
+					}
+				},
+				{
+					"name": "5. SIM Swap Scam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"sim swap detected your number enter pin to cancel 0712345678\",\n  \"sender\": \"AIRTEL_TZ\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test SIM swap fraud detection."
+					}
+				},
+				{
+					"name": "6. Government Relief Scam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"huduma za serikali malipo ya ruzuku 50000 tsh bonyeza link\",\n  \"sender\": \"GOVERNMENT\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test Swahili government relief fund scam detection."
+					}
+				},
+				{
+					"name": "7. Job Offer Scam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"kazi za ajira ya uongozi mshahara 500000 tsh wasiliana 0751234567\",\n  \"sender\": \"HR_DEPT\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test Swahili job offer scam detection."
+					}
+				}
+			]
+		},
+		{
+			"name": "✅ Legitimate Message Tests",
+			"item": [
+				{
+					"name": "1. Meeting Reminder",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"meeting at 3pm today please confirm attendance\",\n  \"sender\": \"OFFICE_MGR\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test legitimate meeting reminder should be classified as safe."
+					}
+				},
+				{
+					"name": "2. Order Confirmation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"your order #12345 has been shipped tracking number AB123456\",\n  \"sender\": \"AMAZON\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test legitimate order confirmation message."
+					}
+				},
+				{
+					"name": "3. Birthday Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"happy birthday hope you have a wonderful day\",\n  \"sender\": \"FRIEND\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test legitimate birthday greeting message."
+					}
+				},
+				{
+					"name": "4. Appointment Confirmation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"your appointment with dr smith is confirmed for 10am\",\n  \"sender\": \"HOSPITAL\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test legitimate medical appointment confirmation."
+					}
+				},
+				{
+					"name": "5. Weather Reminder",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"weather forecast shows rain tomorrow bring umbrella\",\n  \"sender\": \"WEATHER_APP\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test legitimate weather notification."
+					}
+				},
+				{
+					"name": "6. Community Notice (Swahili)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"ushirikiano wa maji wa kata utafanyika Jumapili\",\n  \"sender\": \"VILLAGE_HEAD\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test legitimate Swahili community notice."
+					}
+				}
+			]
+		},
+		{
+			"name": "⚠️ Error Handling Tests",
+			"item": [
+				{
+					"name": "1. Missing Required Field (text)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sender\": \"TEST_SENDER\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test missing required 'text' field - should return 422 validation error."
+					}
+				},
+				{
+					"name": "2. Text Too Long (>1000 chars)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"This is a very long message that exceeds the 1000 character limit set by the API. It contains repetitive content to test the validation logic. This is a very long message that exceeds the 1000 character limit set by the API. It contains repetitive content to test the validation logic. This is a very long message that exceeds the 1000 character limit set by the API. It contains repetitive content to test the validation logic. This is a very long message that exceeds the 1000 character limit set by the API. It contains repetitive content to test the validation logic. This is a very long message that exceeds the 1000 character limit set by the API. It contains repetitive content to test the validation logic. This is a very long message that exceeds the 1000 character limit set by the API. It contains repetitive content to test the validation logic. This is a very long message that exceeds the 1000 character limit set by the API. It contains repetitive content to test the validation logic. This is a very long message that exceeds the 1000 character limit set by the API. It contains repetitive content to test the validation logic. This is a very long message that exceeds the 1000 character limit set by the API. It contains repetitive content to test the validation logic. This is a very long message that exceeds the 1000 character limit set by the API. It contains repetitive content to test the validation logic. This is a very long message that exceeds the 1000 character limit set by the API. It contains repetitive content to test the validation logic.\",\n  \"sender\": \"TEST\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test text exceeding 1000 character limit - should return 422 validation error."
+					}
+				},
+				{
+					"name": "3. Invalid JSON",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"test message\"\n  \"sender\": \"missing comma\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test malformed JSON - should return 400 bad request error."
+					}
+				},
+				{
+					"name": "4. Sender Too Long (>50 chars)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"test message\",\n  \"sender\": \"this-sender-name-is-way-too-long-and-exceeds-the-50-character-limit-set-by-the-api\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test sender exceeding 50 character limit - should return 422 validation error."
+					}
+				}
+			]
+		},
+		{
+			"name": "🔬 Edge Cases & Special Characters",
+			"item": [
+				{
+					"name": "1. Unicode Characters (Emojis)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"🎉 Congratulations! You won $1000! Click here: http://fake.com 📱💰\",\n  \"sender\": \"PRIZE_NOTIFY\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test message with Unicode characters and emojis."
+					}
+				},
+				{
+					"name": "2. Swahili Scam with Mixed Scripts",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"M-Pesa reversal Ksh 5000 ichezwe. Bonyeza link hii: bit.ly/fake-reversal. PIN yako ni muhimu!\",\n  \"sender\": \"MPESA_TZ\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test message with mixed English and Swahili scam content."
+					}
+				},
+				{
+					"name": "3. Empty Sender",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"meeting tomorrow at 2pm don't be late\",\n  \"sender\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test with empty sender field (should be allowed as nullable)."
+					}
+				},
+				{
+					"name": "4. No Sender Field",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"meeting tomorrow at 2pm don't be late\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test without sender field at all (should use default empty string)."
+					}
+				},
+				{
+					"name": "5. Very Short Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"Hi\",\n  \"sender\": \"TEST\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test very short message to check minimum length handling."
+					}
+				}
+			]
+		},
+		{
+			"name": "🚀 Performance & Load Tests",
+			"item": [
+				{
+					"name": "1. Rapid Sequential Requests",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Response time < 1000ms', function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(1000);",
+									"});",
+									"",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has required fields', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('result');",
+									"    pm.expect(response).to.have.property('confidence');",
+									"    pm.expect(response).to.have.property('reason');",
+									"    pm.expect(response).to.have.property('alert');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"quick test message\",\n  \"sender\": \"PERF_TEST\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Performance test - this request should complete quickly. Use with Newman or Postman Runner for load testing."
+					}
+				}
+			]
+		},
+		{
+			"name": "📊 Data Analysis Examples",
+			"item": [
+				{
+					"name": "1. Batch Testing with Sample Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"Your bank account has been temporarily suspended due to suspicious activity. Please call 0712345678 immediately to restore your account.\",\n  \"sender\": \"BANK_SECURITY\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Example of bank security scam for analysis testing. Run multiple variations to test model consistency."
+					}
+				},
+				{
+					"name": "2. Social Engineering Test",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"Emergency! Your mother is in hospital. Send money immediately to this number: 0759876543. Time is critical!\",\n  \"sender\": \"UNKNOWN\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test social engineering scam using emotional manipulation."
+					}
+				},
+				{
+					"name": "3. Technical Support Scam",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"Your computer has been infected with viruses. Call our technical support at 0755550123 immediately to prevent data loss.\",\n  \"sender\": \"TECH_SUPPORT\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/scam/check",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"scam",
+								"check"
+							]
+						},
+						"description": "Test fake technical support scam detection."
+					}
+				}
+			]
+		}
+	]
+}
