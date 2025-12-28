@@ -1,0 +1,210 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../providers/scam_provider.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController _smsController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Start monitoring SMS
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ScamProvider>().startSmsMonitoring();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('🚨 Scam Detector TZ/KE'),
+        backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Consumer<ScamProvider>(
+        builder: (context, scamProvider, child) {
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                // Quick Check Card
+                Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Icon(
+                          scamProvider.isLoading
+                              ? Icons.hourglass_empty
+                              : Icons.security,
+                          size: 64,
+                          color: Colors.orange,
+                        ).animate().scale(duration: 500.ms),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _smsController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            labelText: 'Paste suspicious SMS here',
+                            hintText: 'M-PESA reversal TSh 50000...',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.send),
+                              onPressed:
+                                  scamProvider.isLoading ? null : _checkScam,
+                            ),
+                          ),
+                        ),
+                        if (scamProvider.lastSms != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Text(
+                              'Latest SMS: ${scamProvider.lastSms!.substring(0, scamProvider.lastSms!.length.clamp(0, 100))}...',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.2),
+
+                const SizedBox(height: 24),
+
+                // Recent Scans
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Recent Scans',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold)),
+                          TextButton(
+                            onPressed: scamProvider.recentScans.isEmpty
+                                ? null
+                                : () => scamProvider.clearHistory(),
+                            child: const Text('Clear All'),
+                          ),
+                        ],
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: scamProvider.recentScans.length,
+                          itemBuilder: (context, index) {
+                            final scan = scamProvider.recentScans[index];
+                            final result = scan['result'] as ScamResult;
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              color: result.label == 'scam'
+                                  ? Colors.red.shade50
+                                  : Colors.green.shade50,
+                              child: ListTile(
+                                leading: Icon(
+                                  result.label == 'scam'
+                                      ? Icons.warning
+                                      : Icons.check_circle,
+                                  color: result.label == 'scam'
+                                      ? Colors.red
+                                      : Colors.green,
+                                  size: 32,
+                                ),
+                                title: Text(
+                                    scan['text'].toString().substring(0, 50) +
+                                        '...'),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                        '${result.confidence.toStringAsFixed(1)}% confidence'),
+                                    Text(result.reason,
+                                        style: const TextStyle(fontSize: 12)),
+                                  ],
+                                ),
+                                trailing: Text(
+                                  result.label.toUpperCase(),
+                                  style: TextStyle(
+                                    color: result.label == 'scam'
+                                        ? Colors.red
+                                        : Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                onTap: () => _showScanDetails(context, scan),
+                              ),
+                            ).animate().fadeIn(delay: (index * 100).ms);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _checkScam(),
+        backgroundColor: Colors.green.shade600,
+        icon: const Icon(Icons.security_update),
+        label: const Text('Quick Scan'),
+      ),
+    );
+  }
+
+  void _checkScam() {
+    if (_smsController.text.isNotEmpty) {
+      context.read<ScamProvider>().checkScam(_smsController.text);
+      _smsController.clear();
+    }
+  }
+
+  void _showScanDetails(BuildContext context, Map<String, dynamic> scan) {
+    final result = scan['result'] as ScamResult;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(result.label == 'scam' ? '🚨 SCAM DETECTED' : '✅ Safe'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Confidence: ${result.confidence.toStringAsFixed(1)}%'),
+            const SizedBox(height: 8),
+            Text('Reason: ${result.reason}'),
+            const SizedBox(height: 8),
+            Text('Alert: ${result.alert}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context), child: const Text('OK')),
+        ],
+      ),
+    );
+  }
+}
