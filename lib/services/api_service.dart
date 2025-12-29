@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import '../models/scam_result.dart';
+import '../models/scam_result_db.dart';
 import 'local_scam_detection_service.dart';
+import 'database_helper.dart';
 
 class ApiService {
   // Tanzania Scam Detector API Configuration
@@ -33,88 +35,88 @@ class ApiService {
       throw Exception('Sender name exceeds $maxSenderLength character limit');
     }
 
+    ScamResult finalResult = LocalScamDetectionService.detectScam(text, sender); // Default fallback
+    String detectionMethod = 'unknown';
+
     // Use local detection if enabled and preferred
     if (enableLocalDetection && preferLocalDetection) {
       try {
         final localResult = LocalScamDetectionService.detectScam(text, sender);
         // Return local result if it has high confidence
         if (localResult.confidence >= 70.0) {
-          return localResult;
+          finalResult = localResult;
+          detectionMethod = 'local';
+        } else {
+          // Continue to API call for verification
+          detectionMethod = 'hybrid';
         }
       } catch (e) {
         // Continue to API call if local detection fails
       }
     }
 
-    // Check internet connection
-    final isConnected = await InternetConnectionChecker().hasConnection;
-    if (!isConnected) {
-      // Fallback to local detection if no internet
-      if (enableLocalDetection) {
-        return LocalScamDetectionService.detectScam(text, sender);
-      }
-      throw Exception('No internet connection. Please check your network.');
-    }
-
-    try {
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/scam/check'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode({
-              'text': text.trim(),
-              'sender': sender.trim(),
-            }),
-          )
-          .timeout(const Duration(seconds: timeoutDuration));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        // Validate API response
-        if (data == null || data['result'] == null) {
-          throw Exception('Invalid API response format');
-        }
-
-        return ScamResult.fromJson(data);
-      } else if (response.statusCode == 400) {
-        throw Exception('Bad Request: Invalid JSON format');
-      } else if (response.statusCode == 422) {
-        throw Exception('Validation Error: ${response.body}');
-      } else if (response.statusCode == 404) {
-        throw Exception(
-            'API endpoint not found. Please check your configuration.');
-      } else if (response.statusCode >= 500) {
-        throw Exception('Server error. Please try again later.');
-      } else {
-        throw Exception('API Error: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      // If API fails and local detection is enabled, use local fallback
-      if (enableLocalDetection) {
+    // If we don't have a high-confidence local result, try API
+    if (detectionMethod == 'unknown' || detectionMethod == 'hybrid') {
+      // Check internet connection
+      final isConnected = await InternetConnectionChecker().hasConnection;
+      if (isConnected) {
         try {
-          return LocalScamDetectionService.detectScam(text, sender);
-        } catch (localError) {
-          throw Exception(
-              'Both API and local detection failed. Please check your connection.');
-        }
-      }
+          final response = await http
+              .post(
+                Uri.parse('$baseUrl/scam/check'),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                },
+                body: jsonEncode({
+                  'text': text.trim(),
+                  'sender': sender.trim(),
+                }),
+              )
+              .timeout(const Duration(seconds: timeoutDuration));
 
-      if (e.toString().contains('TimeoutException')) {
-        throw Exception(
-            'Request timed out. Please check your connection and try again.');
-      } else if (e.toString().contains('SocketException')) {
-        throw Exception(
-            'Network error. Please check your internet connection.');
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+
+            // Validate API response
+            if (data == null || data['result'] == null) {
+              throw Exception('Invalid API response format');
+            }
+
+            finalResult = ScamResult.fromJson(data);
+            detectionMethod = 'api';
+          } else {
+            // API failed, use local detection as fallback
+            finalResult = LocalScamDetectionService.detectScam(text, sender);
+            detectionMethod = 'local_fallback';
+          }
+        } catch (e) {
+          // API failed, use local detection as fallback
+          finalResult = LocalScamDetectionService.detectScam(text, sender);
+          detectionMethod = 'local_fallback';
+        }
       } else {
-        rethrow;
+        // No internet, use local detection
+        finalResult = LocalScamDetectionService.detectScam(text, sender);
+        detectionMethod = 'local_offline';
       }
     }
 
-    // This point should never be reached due to the above logic
+    // Store result in database
+    try {
+      final dbResult = ScamResultDB.fromScamResult(
+        finalResult,
+        text,
+        sender,
+        detectionMethod: detectionMethod,
+      );
+      await DatabaseHelper().insertScamResult(dbResult);
+    } catch (e) {
+      // Log database error but don't fail the detection
+      print('Failed to store result in database: $e');
+    }
+
+    return finalResult;
   }
 
   // Health check method to test API connectivity

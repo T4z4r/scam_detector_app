@@ -30,6 +30,10 @@ dependencies:
   
   # State Management (Provider - your existing stack)
   provider: ^6.1.2
+  
+  # Database
+  sqflite: ^2.4.1
+  path: ^1.0.0
 
 dev_dependencies:
   flutter_test:
