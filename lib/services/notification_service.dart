@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
@@ -106,5 +107,79 @@ class NotificationService {
 
   static Future<void> cancelNotification(int id) async {
     await _notifications.cancel(id);
+  }
+
+  /// Test notification functionality
+  static Future<void> testNotification({
+    required String title,
+    required String body,
+    String payload = 'test_notification',
+  }) async {
+    try {
+      // Show a test notification
+      await showScamAlert(
+        title: '🧪 $title',
+        body: '$body\n\nThis is a test notification.',
+        payload: payload,
+      );
+      // ignore: avoid_print
+      print('Test notification sent successfully');
+    } catch (e) {
+      // ignore: avoid_print
+      print('Failed to send test notification: $e');
+      rethrow;
+    }
+  }
+
+  /// Test different types of notifications
+  static Future<void> testScamNotification() async {
+    await testNotification(
+      title: 'HIGH RISK SCAM DETECTED',
+      body: 'M-Pesa reversal scam detected with 95% confidence. Never share your PIN with unknown parties.',
+      payload: 'scam_test',
+    );
+  }
+
+  static Future<void> testSuspiciousNotification() async {
+    await testNotification(
+      title: 'SUSPICIOUS MESSAGE',
+      body: 'Potential cryptocurrency investment scam detected. Verify before taking any action.',
+      payload: 'suspicious_test',
+    );
+  }
+
+  static Future<void> testLegitimateNotification() async {
+    await testNotification(
+      title: 'MESSAGE ANALYZED',
+      body: 'This message appears to be legitimate. No scam patterns detected.',
+      payload: 'legitimate_test',
+    );
+  }
+
+  /// Test scheduled notification (for future enhancement)
+  static Future<void> testScheduledNotification() async {
+    final scheduleTime = DateTime.now().add(Duration(seconds: 5));
+    
+    final androidDetails = AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: _channelDescription,
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+    );
+    
+    final platformDetails = NotificationDetails(android: androidDetails);
+    
+    await _notifications.zonedSchedule(
+      0,
+      '🧪 Scheduled Test Notification',
+      'This notification was scheduled to appear in 5 seconds.',
+      tz.TZDateTime.from(scheduleTime, tz.local),
+      platformDetails,
+      payload: 'scheduled_test',
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
   }
 }

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The scam detector app now includes comprehensive local database storage using SQLite to store all scam detection results. This provides persistent storage, advanced querying capabilities, and detailed analytics for scam detection patterns.
+The scam detector app now includes comprehensive local database storage using SQLite to store all scam detection results. This provides persistent storage, advanced querying capabilities, detailed analytics for scam detection patterns, and robust local notification system for real-time alerts.
 
 ## Features Added
 
@@ -10,6 +10,13 @@ The scam detector app now includes comprehensive local database storage using SQ
 - All scam detection results are automatically stored in the local database
 - No additional code required - works seamlessly with existing API and local detection
 - Results include detection method, confidence score, source text, and sender information
+
+### 🔔 Local Notifications
+- Real-time notifications for high-confidence scam detection
+- Automatic alerts for suspicious messages with high confidence scores
+- Customizable notification types (scam, suspicious, legitimate)
+- Scheduled notifications and notification management
+- Integration with existing notification service
 
 ### 📊 Advanced Analytics
 - Comprehensive statistics and analytics
@@ -35,7 +42,10 @@ The scam detector app now includes comprehensive local database storage using SQ
 - `lib/models/scam_result_db.dart` - Database model extending base ScamResult
 - `lib/services/database_helper.dart` - Core database operations
 - `lib/services/scam_history_service.dart` - High-level history management
+- `lib/services/notification_service.dart` - Enhanced notification service with testing methods
+- `lib/widgets/notification_test_panel.dart` - UI widget for testing notifications
 - `test_database_functionality.dart` - Comprehensive test suite
+- `test_notifications.dart` - Comprehensive notification test suite
 
 ### Modified Files
 - `pubspec.yaml` - Added SQLite dependencies
@@ -86,6 +96,53 @@ final result = ScamResultDB.fromScamResult(
   detectionMethod: 'local',
 );
 await dbHelper.insertScamResult(result);
+```
+
+### Notification Testing
+
+```dart
+import 'lib/services/notification_service.dart';
+
+// Test basic notification
+await NotificationService.testNotification(
+  title: 'Test Alert',
+  body: 'This is a test notification',
+  payload: 'test_payload',
+);
+
+// Test specific scam alert types
+await NotificationService.testScamNotification();
+await NotificationService.testSuspiciousNotification();
+await NotificationService.testLegitimateNotification();
+
+// Test scheduled notification
+await NotificationService.testScheduledNotification();
+
+// Clear all notifications
+await NotificationService.cancelAllNotifications();
+```
+
+### UI Integration
+
+```dart
+import 'lib/widgets/notification_test_panel.dart';
+
+// Add notification testing panel to your UI
+class MyHomePage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Scam Detector')),
+      body: Column(
+        children: [
+          // Your existing content
+          NotificationTestPanel(), // Add this for testing
+          // More content
+        ],
+      ),
+    );
+  }
+}
 ```
 
 ### Retrieving Results
@@ -184,6 +241,18 @@ The database integration is seamless - no code changes required in existing comp
 // This now automatically stores results in the database
 final result = await ApiService.checkScam(text, sender);
 // Result is automatically saved with metadata
+// High-confidence scam results trigger automatic notifications
+```
+
+### Notification Service Integration
+```dart
+// Notifications are automatically sent for high-confidence results
+// Scam results (>80% confidence): High-priority alerts
+// Suspicious results (>70% confidence): Warning notifications
+// Legitimate results: Information notifications (optional)
+
+// Manual notification testing available
+await NotificationService.testScamNotification();
 ```
 
 ### Provider Integration
@@ -191,10 +260,12 @@ The existing `ScamProvider` continues to work normally, while results are automa
 
 ## Performance Optimizations
 
-- **Indexes**: Created on frequently queried columns (label, created_at, detection_method, is_starred)
+- **Database Indexes**: Created on frequently queried columns (label, created_at, detection_method, is_starred)
 - **Pagination**: All retrieval methods support limit/offset for large datasets
 - **Efficient Queries**: Optimized SQL queries with proper WHERE clauses
 - **Connection Management**: Singleton database instance with proper cleanup
+- **Notification Batching**: Efficient notification handling to prevent system overload
+- **Background Processing**: Database operations run asynchronously to maintain UI responsiveness
 
 ## Data Management
 
@@ -221,31 +292,38 @@ final weekExported = await historyService.exportResults(
 
 ## Testing
 
-Run the comprehensive test suite:
+Run the comprehensive test suites:
 
+### Database Testing
 ```bash
 dart test_database_functionality.dart
 ```
 
-This tests:
-- Database initialization
-- Insert operations
-- Retrieval operations
-- Search functionality
-- Star functionality
-- Statistics generation
-- Real scam detection with storage
-- Cleanup operations
+### Notification Testing
+```bash
+dart test_notifications.dart
+```
+
+### Integration Testing
+Both test suites cover:
+- Database initialization and operations
+- Notification functionality and permissions
+- Real-time scam detection with automatic notifications
+- Performance testing with rapid operations
+- Error handling and edge cases
+- User interaction scenarios
 
 ## Migration Guide
 
 ### For Existing Code
-No changes required! The database integration is backward compatible:
+No changes required! The database and notification integration is backward compatible:
 
 1. Existing `ScamResult` objects continue to work unchanged
 2. All existing methods in `ApiService` work as before
 3. Results are automatically stored without any code changes
 4. Provider and UI components continue to function normally
+5. Notifications are automatically sent for high-confidence results
+6. Existing notification handling remains unchanged
 
 ### For New Features
 To add database-aware features:
