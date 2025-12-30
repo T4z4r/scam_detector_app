@@ -78,13 +78,22 @@ class ApiService {
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
 
-            // Validate API response
-            if (data == null || data['result'] == null) {
-              throw Exception('Invalid API response format');
+            // Handle new API response format
+            final apiResponse = ApiResponse<ScamResult>.fromJson(data);
+            
+            if (apiResponse.isSuccess && apiResponse.data != null) {
+              finalResult = apiResponse.data!;
+              detectionMethod = 'api';
+            } else {
+              // API returned error, use local detection as fallback
+              finalResult = LocalScamDetectionService.detectScam(text, sender);
+              detectionMethod = 'local_fallback';
             }
-
-            finalResult = ScamResult.fromJson(data);
-            detectionMethod = 'api';
+          } else if (response.statusCode == 422) {
+            // Validation error - parse error details
+            final data = jsonDecode(response.body);
+            final apiResponse = ApiResponse<ScamResult>.fromJson(data);
+            throw Exception('Validation error: ${apiResponse.message}');
           } else {
             // API failed, use local detection as fallback
             finalResult = LocalScamDetectionService.detectScam(text, sender);
@@ -163,5 +172,188 @@ class ApiService {
   // Get detection statistics for a message
   static Map<String, int> getDetectionStatistics(String text) {
     return LocalScamDetectionService.getPatternStatistics(text);
+  }
+
+  // Training Management Methods
+
+  /// Get current training status
+  static Future<TrainingStatus> getTrainingStatus() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/training/status'),
+            headers: {'Accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final apiResponse = ApiResponse<Map<String, dynamic>>.fromJson(data);
+        
+        if (apiResponse.isSuccess && apiResponse.data != null) {
+          return TrainingStatus.fromJson(apiResponse.data!);
+        } else {
+          throw Exception('Failed to get training status: ${apiResponse.message}');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}: Failed to get training status');
+      }
+    } catch (e) {
+      throw Exception('Failed to get training status: $e');
+    }
+  }
+
+  /// Get training data statistics
+  static Future<TrainingData> getTrainingData() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/training/data'),
+            headers: {'Accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final apiResponse = ApiResponse<Map<String, dynamic>>.fromJson(data);
+        
+        if (apiResponse.isSuccess && apiResponse.data != null) {
+          return TrainingData.fromJson(apiResponse.data!);
+        } else {
+          throw Exception('Failed to get training data: ${apiResponse.message}');
+        }
+      } else if (response.statusCode == 404) {
+        throw Exception('Training data not found');
+      } else {
+        throw Exception('HTTP ${response.statusCode}: Failed to get training data');
+      }
+    } catch (e) {
+      throw Exception('Failed to get training data: $e');
+    }
+  }
+
+  /// Get model performance metrics
+  static Future<ModelMetrics> getModelMetrics() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/training/metrics'),
+            headers: {'Accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final apiResponse = ApiResponse<Map<String, dynamic>>.fromJson(data);
+        
+        if (apiResponse.isSuccess && apiResponse.data != null) {
+          return ModelMetrics.fromJson(apiResponse.data!);
+        } else {
+          throw Exception('Failed to get model metrics: ${apiResponse.message}');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}: Failed to get model metrics');
+      }
+    } catch (e) {
+      throw Exception('Failed to get model metrics: $e');
+    }
+  }
+
+  /// Delete training data
+  static Future<void> deleteTrainingData() async {
+    try {
+      final response = await http
+          .delete(
+            Uri.parse('$baseUrl/training/data'),
+            headers: {'Accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final apiResponse = ApiResponse<Map<String, dynamic>>.fromJson(data);
+        
+        if (!apiResponse.isSuccess) {
+          throw Exception('Failed to delete training data: ${apiResponse.message}');
+        }
+      } else if (response.statusCode == 404) {
+        throw Exception('Training data not found');
+      } else {
+        throw Exception('HTTP ${response.statusCode}: Failed to delete training data');
+      }
+    } catch (e) {
+      throw Exception('Failed to delete training data: $e');
+    }
+  }
+
+  /// Start model training
+  static Future<void> startTraining() async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/training/train'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'action': 'train'}),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final apiResponse = ApiResponse<Map<String, dynamic>>.fromJson(data);
+        
+        if (!apiResponse.isSuccess) {
+          throw Exception('Failed to start training: ${apiResponse.message}');
+        }
+      } else if (response.statusCode == 404) {
+        throw Exception('No training data available. Please upload training data first.');
+      } else {
+        throw Exception('HTTP ${response.statusCode}: Failed to start training');
+      }
+    } catch (e) {
+      throw Exception('Failed to start training: $e');
+    }
+  }
+
+  /// Upload training data file
+  static Future<void> uploadTrainingData(List<int> fileBytes, String fileName) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/training/upload'),
+      );
+      
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'training_file',
+          fileBytes,
+          filename: fileName,
+        ),
+      );
+
+      final response = await request.send()
+          .timeout(const Duration(seconds: 60));
+
+      final responseBody = await response.stream.bytesToString();
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(responseBody);
+        final apiResponse = ApiResponse<Map<String, dynamic>>.fromJson(data);
+        
+        if (!apiResponse.isSuccess) {
+          throw Exception('Failed to upload training data: ${apiResponse.message}');
+        }
+      } else if (response.statusCode == 422) {
+        final data = jsonDecode(responseBody);
+        final apiResponse = ApiResponse<Map<String, dynamic>>.fromJson(data);
+        throw Exception('Validation error: ${apiResponse.message}');
+      } else {
+        throw Exception('HTTP ${response.statusCode}: Failed to upload training data');
+      }
+    } catch (e) {
+      throw Exception('Failed to upload training data: $e');
+    }
   }
 }

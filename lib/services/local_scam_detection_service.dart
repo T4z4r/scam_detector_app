@@ -164,6 +164,80 @@ class LocalScamDetectionService {
       'confidence': 0.65,
       'reason': 'Urgency-based scam tactic',
       'alert': 'Scammers often create false urgency to pressure victims'
+    },
+
+    // Additional patterns from Postman collection test cases
+    {
+      'pattern': r'bank\s+account\s+(temporarily\s+)?suspended',
+      'keywords': [
+        'bank',
+        'account',
+        'suspended',
+        'suspicious',
+        'activity',
+        'temporarily'
+      ],
+      'language': 'both',
+      'confidence': 0.85,
+      'reason': 'Bank account suspension scam',
+      'alert': 'Banks never ask for sensitive information via SMS'
+    },
+    {
+      'pattern': r'computer\s+(has\s+been\s+)?infected',
+      'keywords': [
+        'computer',
+        'infected',
+        'viruses',
+        'technical',
+        'support',
+        'data',
+        'loss'
+      ],
+      'language': 'both',
+      'confidence': 0.9,
+      'reason': 'Technical support scam',
+      'alert': 'Never provide remote access to unknown technical support agents'
+    },
+    {
+      'pattern': r'emergency.*(mother|father|family|hospital)',
+      'keywords': [
+        'emergency',
+        'hospital',
+        'money',
+        'immediately',
+        'critical',
+        'mother',
+        'father'
+      ],
+      'language': 'both',
+      'confidence': 0.8,
+      'reason': 'Social engineering scam using emotional manipulation',
+      'alert':
+          'Verify emergency requests through direct contact with family/friends'
+    },
+    {
+      'pattern': r'congratulations.*\$?\d+',
+      'keywords': ['congratulations', 'won', 'prize', '🎉', '📱', '💰'],
+      'language': 'both',
+      'confidence': 0.85,
+      'reason': 'Prize scam with emojis',
+      'alert': 'Be wary of prize notifications with emojis and dollar amounts'
+    },
+    {
+      'pattern': r'M-Pesa.*reversal.*Ksh',
+      'keywords': [
+        'mpesa',
+        'reversal',
+        'ksh',
+        'bonyeza',
+        'pin',
+        'muhimu',
+        'ichezwe'
+      ],
+      'language': 'both',
+      'confidence': 0.92,
+      'reason': 'M-Pesa reversal scam in mixed English/Swahili',
+      'alert': 'Never share your M-Pesa PIN regardless of language used'
     }
   ];
 
