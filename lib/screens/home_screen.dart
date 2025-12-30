@@ -17,6 +17,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _smsController = TextEditingController();
+  final TextEditingController _senderController = TextEditingController();
   bool _autoMonitoringEnabled = false;
   bool _showTestPanel = false; // Toggle for test panel
 
@@ -78,6 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _smsController.dispose();
+    _senderController.dispose();
     super.dispose();
   }
 
@@ -156,10 +158,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ).animate().scale(duration: 500.ms),
                                 const SizedBox(height: 16),
                                 TextField(
+                                  controller: _senderController,
+                                  maxLines: 1,
+                                  decoration: InputDecoration(
+                                    labelText: 'Sender (Optional)',
+                                    hintText: 'MPESA, BANK, UNKNOWN...',
+                                    border: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
+                                    prefixIcon: Icon(Icons.person_outline),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                TextField(
                                   controller: _smsController,
                                   maxLines: 3,
                                   decoration: InputDecoration(
-                                    labelText: 'Paste suspicious SMS here',
+                                    labelText: 'SMS Message',
                                     hintText: 'M-PESA reversal TSh 50000...',
                                     border: OutlineInputBorder(
                                         borderRadius:
@@ -445,9 +460,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _checkScam() {
     final text = _smsController.text.trim();
+    final sender = _senderController.text.trim();
     if (text.isNotEmpty) {
-      context.read<ScamProvider>().checkScam(text);
+      context.read<ScamProvider>().checkScam(text, sender: sender);
       _smsController.clear();
+      _senderController.clear();
     } else {
       // Show a snackbar or error message
       ScaffoldMessenger.of(context).showSnackBar(
