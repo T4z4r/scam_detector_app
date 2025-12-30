@@ -14,12 +14,13 @@ class SmsPlatformChannel {
 
       List<SmsMessage> messages = [];
       for (var smsData in result) {
-        final smsMap = smsData as Map<String, dynamic>;
+        // Handle the type casting safely since platform channel returns _Map<Object?, Object?>
+        final Map<String, dynamic> smsMap = _safeCastToStringMap(smsData);
         messages.add(SmsMessage(
           sender: smsMap['sender']?.toString() ?? 'Unknown',
           body: smsMap['body']?.toString() ?? '',
           date: DateTime.fromMillisecondsSinceEpoch(
-              smsMap['timestamp'] ?? DateTime.now().millisecondsSinceEpoch),
+              smsMap['timestamp']?.toInt() ?? DateTime.now().millisecondsSinceEpoch),
         ));
       }
 
@@ -31,6 +32,17 @@ class SmsPlatformChannel {
       print('Error reading SMS: $e');
       throw Exception('Error reading SMS: $e');
     }
+  }
+
+  // Helper method to safely cast platform channel map to Map<String, dynamic>
+  static Map<String, dynamic> _safeCastToStringMap(dynamic mapData) {
+    if (mapData is Map) {
+      return mapData.map((key, value) => MapEntry(
+            key.toString(),
+            value,
+          ));
+    }
+    throw Exception('Expected Map but got ${mapData.runtimeType}');
   }
 
   // Check if SMS reading is supported
