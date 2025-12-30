@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../providers/scam_provider.dart';
 import '../models/scam_result.dart';
+import '../models/call_log.dart';
+import '../services/call_log_service.dart';
 
 import '../services/scam_history_service.dart';
 import '../services/notification_service.dart';
@@ -77,7 +79,8 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController =
+        TabController(length: 4, vsync: this); // Increased to 4 for call logs
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ScamProvider>().startSmsMonitoring();
     });
@@ -117,8 +120,9 @@ class _HomeScreenState extends State<HomeScreen>
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
           tabs: const [
-            Tab(icon: Icon(Icons.flash_on), text: 'Quick Scan'),
+            Tab(icon: Icon(Icons.flash_on), text: 'Scan'),
             Tab(icon: Icon(Icons.message), text: 'Messages'),
+            Tab(icon: Icon(Icons.phone), text: 'Call Logs'),
             Tab(icon: Icon(Icons.history), text: 'History'),
           ],
         ),
@@ -128,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen>
         children: [
           _buildQuickScanTab(),
           _buildReceivedMessagesTab(),
+          _buildCallLogsTab(),
           _buildScanHistoryTab(),
         ],
       ),
@@ -868,6 +873,319 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // Call Logs Tab
+  Widget _buildCallLogsTab() {
+    return FutureBuilder<List<CallLogEntry>>(
+      future: CallLogService.getRecentCallLogs(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, size: 64, color: Colors.red.shade300),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading call logs: ${snapshot.error}',
+                  style: TextStyle(color: Colors.red.shade700),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => setState(() {}),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final callLogs = snapshot.data ?? [];
+        final hasDemoData = callLogs.any((log) =>
+            log.callerName == 'MPESA Support' ||
+            log.callerName == 'CRDB Bank' ||
+            log.callerName == 'Telecom Tanzania');
+
+        if (callLogs.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.phone, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'No call logs found',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 16,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Grant call log permission to view call history',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            // Demo data notification
+            if (hasDemoData)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                color: Colors.orange.shade100,
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.orange.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Showing demo call log data. Grant call log permissions to view actual call history.',
+                        style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final granted =
+                            await CallLogService.requestCallLogPermission();
+                        if (granted) {
+                          setState(() {});
+                        }
+                      },
+                      child: Text(
+                        'Enable',
+                        style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Search bar for call logs
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  labelText: 'Search call logs...',
+                  hintText: 'Search by phone number or caller name',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            _searchDebounceTimer?.cancel();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onChanged: (value) {
+                  _debouncedSearch(value);
+                },
+              ),
+            ),
+
+            // Filter and display call logs
+            Expanded(
+              child: Builder(
+                builder: (context) {
+                  final filteredCallLogs = _searchQuery.isEmpty
+                      ? callLogs
+                      : callLogs.where((log) {
+                          return log.phoneNumber
+                                  .toLowerCase()
+                                  .contains(_searchQuery) ||
+                              log.callerName
+                                  .toLowerCase()
+                                  .contains(_searchQuery);
+                        }).toList();
+
+                  if (filteredCallLogs.isEmpty && _searchQuery.isNotEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_off,
+                              size: 64, color: Colors.grey.shade300),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No call logs found',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Try a different search term',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: filteredCallLogs.length,
+                    itemBuilder: (context, index) {
+                      final callLog = filteredCallLogs[index];
+                      final isDemo = hasDemoData &&
+                          (callLog.callerName == 'MPESA Support' ||
+                              callLog.callerName == 'CRDB Bank' ||
+                              callLog.callerName == 'Telecom Tanzania');
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        color: callLog.isScamSuspected
+                            ? Colors.red.shade50
+                            : callLog.callType == CallType.missed
+                                ? Colors.orange.shade50
+                                : Colors.green.shade50,
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: callLog.isScamSuspected
+                                ? Colors.red.shade100
+                                : callLog.callType == CallType.missed
+                                    ? Colors.orange.shade100
+                                    : Colors.green.shade100,
+                            child: Text(
+                              callLog.callTypeIcon,
+                              style: TextStyle(
+                                color: callLog.isScamSuspected
+                                    ? Colors.red.shade700
+                                    : callLog.callType == CallType.missed
+                                        ? Colors.orange.shade700
+                                        : Colors.green.shade700,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            callLog.callerName.isNotEmpty
+                                ? callLog.callerName
+                                : 'Unknown Caller',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text(
+                                callLog.phoneNumber,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${callLog.callTypeDisplayName} • ${callLog.formattedDuration}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatDate(callLog.callDate),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              if (isDemo) ...[
+                                const SizedBox(height: 2),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade100,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  child: Text(
+                                    'Demo',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.orange.shade700,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (callLog.isScamSuspected) ...[
+                                const SizedBox(height: 2),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade100,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  child: Text(
+                                    'SUSPECTED SCAM',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.red.shade700,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          trailing: ElevatedButton.icon(
+                            onPressed: () => _testCallLog(callLog),
+                            icon: const Icon(Icons.verified_user, size: 16),
+                            label: const Text('Test'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.shade600,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                            ),
+                          ),
+                          onTap: () => _showCallLogDetails(callLog),
+                        ),
+                      ).animate().fadeIn(delay: (index * 100).ms);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // Utility Methods
   String _truncateText(String text, [int maxLength = 50]) {
     if (text.length <= maxLength) return text;
@@ -915,6 +1233,18 @@ class _HomeScreenState extends State<HomeScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Testing message from ${message.sender}'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
+
+  void _testCallLog(CallLogEntry callLog) {
+    context.read<ScamProvider>().checkScam(
+        'Call from ${callLog.callerName} (${callLog.phoneNumber})',
+        sender: callLog.callerName);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Testing call from ${callLog.callerName}'),
         backgroundColor: Colors.blue,
       ),
     );
@@ -1016,6 +1346,108 @@ class _HomeScreenState extends State<HomeScreen>
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context), child: const Text('OK')),
+        ],
+      ),
+    );
+  }
+
+  void _showCallLogDetails(CallLogEntry callLog) {
+    final isDemoData = callLog.callerName == 'MPESA Support' ||
+        callLog.callerName == 'CRDB Bank' ||
+        callLog.callerName == 'Telecom Tanzania';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(callLog.callerName.isNotEmpty
+            ? callLog.callerName
+            : 'Unknown Caller'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (isDemoData) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.orange.shade700, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Demo Data',
+                      style: TextStyle(
+                        color: Colors.orange.shade700,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Text(
+              'Phone Number:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            const SizedBox(height: 4),
+            Text(callLog.phoneNumber),
+            const SizedBox(height: 12),
+            Text(
+              'Call Details:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            const SizedBox(height: 4),
+            Text('Type: ${callLog.callTypeDisplayName}'),
+            Text('Duration: ${callLog.formattedDuration}'),
+            Text('Date: ${_formatDate(callLog.callDate)}'),
+            if (callLog.isScamSuspected) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade100,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning, color: Colors.red.shade700, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      'SUSPECTED SCAM CALL',
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _testCallLog(callLog);
+            },
+            icon: const Icon(Icons.verified_user, size: 16),
+            label: const Text('Test Call'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+            ),
+          ),
         ],
       ),
     );
