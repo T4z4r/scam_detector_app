@@ -7,6 +7,7 @@ import '../models/scam_result.dart';
 import '../services/scam_history_service.dart';
 import '../services/notification_service.dart';
 import '../services/api_service.dart';
+import '../services/sms_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,11 +16,13 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _smsController = TextEditingController();
   final TextEditingController _senderController = TextEditingController();
   bool _autoMonitoringEnabled = false;
-  bool _showTestPanel = false; // Toggle for test panel
+  bool _showTestPanel = false;
+  late TabController _tabController;
 
   // Sample test messages for different scam types
   final List<Map<String, dynamic>> _sampleMessages = [
@@ -70,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Start monitoring SMS
+    _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ScamProvider>().startSmsMonitoring();
     });
@@ -80,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _smsController.dispose();
     _senderController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -91,16 +95,42 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
         elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          tabs: const [
+            Tab(icon: Icon(Icons.flash_on), text: 'Quick Scan'),
+            Tab(icon: Icon(Icons.message), text: 'Messages'),
+            Tab(icon: Icon(Icons.history), text: 'History'),
+          ],
+        ),
       ),
-      body: Consumer<ScamProvider>(
-        builder: (context, scamProvider, child) {
-          return SafeArea(
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildQuickScanTab(),
+          _buildReceivedMessagesTab(),
+          _buildScanHistoryTab(),
+        ],
+      ),
+    );
+  }
+
+  // Quick Scan Tab
+  Widget _buildQuickScanTab() {
+    return Consumer<ScamProvider>(
+      builder: (context, scamProvider, child) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 // Error Display
                 if (scamProvider.hasError)
                   Container(
-                    margin: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 16),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.red.shade50,
@@ -133,329 +163,486 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                // Main Content Area
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                // Quick Scan Card
+                Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Quick Check Card
-                        Card(
-                          elevation: 8,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  scamProvider.isLoading
-                                      ? Icons.hourglass_empty
-                                      : Icons.security,
-                                  size: 64,
-                                  color: Colors.orange,
-                                ).animate().scale(duration: 500.ms),
-                                const SizedBox(height: 16),
-                                TextField(
-                                  controller: _senderController,
-                                  maxLines: 1,
-                                  decoration: InputDecoration(
-                                    labelText: 'Sender (Optional)',
-                                    hintText: 'MPESA, BANK, UNKNOWN...',
-                                    border: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12)),
-                                    prefixIcon: Icon(Icons.person_outline),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                TextField(
-                                  controller: _smsController,
-                                  maxLines: 3,
-                                  decoration: InputDecoration(
-                                    labelText: 'SMS Message',
-                                    hintText: 'M-PESA reversal TSh 50000...',
-                                    border: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12)),
-                                    suffixIcon: IconButton(
-                                      icon: const Icon(Icons.send),
-                                      onPressed: scamProvider.isLoading
-                                          ? null
-                                          : _checkScam,
-                                    ),
-                                  ),
-                                ),
-                                if (scamProvider.lastSms != null) ...[
-                                  const SizedBox(height: 12),
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.shade50,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                          color: Colors.blue.shade200),
-                                    ),
-                                    child: Text(
-                                      'Latest SMS: ${_truncateText(scamProvider.lastSms!)}',
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(height: 12),
-                                SwitchListTile(
-                                  title: const Text(
-                                      'Auto-detect scams in incoming SMS'),
-                                  subtitle: const Text(
-                                      'Automatically analyze incoming messages'),
-                                  value: _autoMonitoringEnabled,
-                                  onChanged: (bool value) {
-                                    setState(() {
-                                      _autoMonitoringEnabled = value;
-                                    });
-                                    if (value) {
-                                      context
-                                          .read<ScamProvider>()
-                                          .startSmsMonitoring();
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content:
-                                              Text('SMS monitoring enabled'),
-                                          backgroundColor: Colors.green,
-                                        ),
-                                      );
-                                    } else {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content:
-                                              Text('SMS monitoring disabled'),
-                                          backgroundColor: Colors.orange,
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  activeColor: Colors.green,
-                                ),
-                              ],
+                        Icon(
+                          scamProvider.isLoading
+                              ? Icons.hourglass_empty
+                              : Icons.security,
+                          size: 64,
+                          color: Colors.orange,
+                        ).animate().scale(duration: 500.ms),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _senderController,
+                          maxLines: 1,
+                          decoration: InputDecoration(
+                            labelText: 'Sender (Optional)',
+                            hintText: 'MPESA, BANK, UNKNOWN...',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            prefixIcon: Icon(Icons.person_outline),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _smsController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            labelText: 'SMS Message',
+                            hintText: 'M-PESA reversal TSh 50000...',
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                        if (scamProvider.lastSms != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Text(
+                              'Latest SMS: ${_truncateText(scamProvider.lastSms!)}',
+                              style: const TextStyle(fontSize: 12),
                             ),
                           ),
-                        ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.2),
-
-                        const SizedBox(height: 16),
-
-                        // Test Panel Toggle
+                        ],
+                        const SizedBox(height: 12),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                setState(() {
-                                  _showTestPanel = !_showTestPanel;
-                                });
-                              },
-                              icon: Icon(_showTestPanel
-                                  ? Icons.hide_source
-                                  : Icons.science),
-                              label: Text(_showTestPanel
-                                  ? 'Hide Tests'
-                                  : '🧪 Show Tests'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue.shade600,
-                                foregroundColor: Colors.white,
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed:
+                                    scamProvider.isLoading ? null : _checkScam,
+                                icon: Icon(
+                                  scamProvider.isLoading
+                                      ? Icons.hourglass_empty
+                                      : Icons.security_update,
+                                  size: 20,
+                                ),
+                                label: Text(
+                                  scamProvider.isLoading
+                                      ? 'Analyzing...'
+                                      : 'Analyze SMS',
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade600,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 12),
+                                ),
                               ),
                             ),
                           ],
                         ),
-
-                        // Test Panel
-                        if (_showTestPanel) ...[
-                          const SizedBox(height: 16),
-                          _buildTestPanel(),
-                        ],
-
-                        const SizedBox(height: 16),
-
-                        // Recent Scans Section
-                        Card(
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          child: Column(
-                            children: [
-                              // Header
-                              Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Recent Scans',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    TextButton(
-                                      onPressed: scamProvider
-                                              .recentScans.isEmpty
-                                          ? null
-                                          : () => scamProvider.clearHistory(),
-                                      child: const Text('Clear All'),
-                                    ),
-                                  ],
+                        const SizedBox(height: 12),
+                        SwitchListTile(
+                          title:
+                              const Text('Auto-detect scams in incoming SMS'),
+                          subtitle: const Text(
+                              'Automatically analyze incoming messages'),
+                          value: _autoMonitoringEnabled,
+                          onChanged: (bool value) {
+                            setState(() {
+                              _autoMonitoringEnabled = value;
+                            });
+                            if (value) {
+                              context.read<ScamProvider>().startSmsMonitoring();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('SMS monitoring enabled'),
+                                  backgroundColor: Colors.green,
                                 ),
-                              ),
-                              const Divider(height: 1),
-
-                              // Content Area
-                              SizedBox(
-                                height: 300, // Fixed height for scrollable list
-                                child: scamProvider.recentScans.isEmpty
-                                    ? const Center(
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.search,
-                                              size: 48,
-                                              color: Colors.grey,
-                                            ),
-                                            SizedBox(height: 16),
-                                            Text(
-                                              'No scans yet',
-                                              style: TextStyle(
-                                                color: Colors.grey,
-                                                fontSize: 16,
-                                              ),
-                                            ),
-                                            SizedBox(height: 8),
-                                            Text(
-                                              'Start by analyzing a suspicious SMS',
-                                              style: TextStyle(
-                                                color: Colors.grey,
-                                                fontSize: 14,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                    : ListView.builder(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16),
-                                        itemCount:
-                                            scamProvider.recentScans.length,
-                                        itemBuilder: (context, index) {
-                                          final scan =
-                                              scamProvider.recentScans[index];
-                                          final result =
-                                              scan['result'] as ScamResult;
-
-                                          return Card(
-                                            margin: const EdgeInsets.only(
-                                                bottom: 8),
-                                            color: result.label == 'scam'
-                                                ? Colors.red.shade50
-                                                : Colors.green.shade50,
-                                            child: ListTile(
-                                              leading: Icon(
-                                                result.label == 'scam'
-                                                    ? Icons.warning
-                                                    : Icons.check_circle,
-                                                color: result.label == 'scam'
-                                                    ? Colors.red
-                                                    : Colors.green,
-                                                size: 24,
-                                              ),
-                                              title: Text(
-                                                _truncateText(
-                                                    scan['text'].toString()),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              subtitle: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                      '${result.confidence.toStringAsFixed(1)}% confidence'),
-                                                  Text(
-                                                    result.reason,
-                                                    style: const TextStyle(
-                                                        fontSize: 11),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ],
-                                              ),
-                                              trailing: Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: result.label == 'scam'
-                                                      ? Colors.red.shade100
-                                                      : Colors.green.shade100,
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                ),
-                                                child: Text(
-                                                  result.label.toUpperCase(),
-                                                  style: TextStyle(
-                                                    color: result.label ==
-                                                            'scam'
-                                                        ? Colors.red.shade700
-                                                        : Colors.green.shade700,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 10,
-                                                  ),
-                                                ),
-                                              ),
-                                              onTap: () => _showScanDetails(
-                                                  context, scan),
-                                            ),
-                                          )
-                                              .animate()
-                                              .fadeIn(delay: (index * 100).ms);
-                                        },
-                                      ),
-                              ),
-                            ],
-                          ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('SMS monitoring disabled'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                            }
+                          },
+                          activeColor: Colors.green,
                         ),
-
-                        const SizedBox(height: 80), // Extra space for FAB
                       ],
                     ),
                   ),
+                ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.2),
+
+                const SizedBox(height: 16),
+
+                // Test Panel Toggle
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _showTestPanel = !_showTestPanel;
+                        });
+                      },
+                      icon: Icon(
+                          _showTestPanel ? Icons.hide_source : Icons.science),
+                      label:
+                          Text(_showTestPanel ? 'Hide Tests' : '🧪 Show Tests'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade600,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Test Panel
+                if (_showTestPanel) ...[
+                  const SizedBox(height: 16),
+                  _buildTestPanel(),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Received Messages Tab
+  Widget _buildReceivedMessagesTab() {
+    return FutureBuilder<List<SmsMessage>>(
+      future: SmsService.getRecentSms(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, size: 64, color: Colors.red.shade300),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading messages: ${snapshot.error}',
+                  style: TextStyle(color: Colors.red.shade700),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => setState(() {}),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
                 ),
               ],
             ),
           );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _checkScam(),
-        backgroundColor: Colors.green.shade600,
-        icon: const Icon(Icons.security_update),
-        label: const Text('Quick Scan'),
-      ),
+        }
+
+        final messages = snapshot.data ?? [];
+        final hasDemoData = messages.any((msg) =>
+            msg.sender == 'MPESA' ||
+            msg.sender == 'BANK_TZ' ||
+            msg.sender == 'TIGO_MONEY');
+
+        if (messages.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.message, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'No messages found',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 16,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Grant SMS permission to view messages',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            // Demo data notification
+            if (hasDemoData)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                color: Colors.orange.shade100,
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.orange.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Showing demo SMS data. Grant SMS permissions to view actual messages.',
+                        style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final granted = await SmsService.requestSmsPermission();
+                        if (granted) {
+                          setState(() {});
+                        }
+                      },
+                      child: Text(
+                        'Enable',
+                        style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Messages list
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: messages.length,
+                itemBuilder: (context, index) {
+                  final message = messages[index];
+                  final isDemo = hasDemoData &&
+                      (message.sender == 'MPESA' ||
+                          message.sender == 'BANK_TZ' ||
+                          message.sender == 'TIGO_MONEY');
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.blue.shade100,
+                        child: Text(
+                          message.sender.isNotEmpty
+                              ? message.sender[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        message.sender.isNotEmpty
+                            ? message.sender
+                            : 'Unknown Sender',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          Text(
+                            _truncateText(message.body, 100),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatDate(message.date),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          if (isDemo) ...[
+                            const SizedBox(height: 2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade100,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                              child: Text(
+                                'Demo',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.orange.shade700,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      trailing: ElevatedButton.icon(
+                        onPressed: () => _testMessage(message),
+                        icon: const Icon(Icons.verified_user, size: 16),
+                        label: const Text('Test'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade600,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                        ),
+                      ),
+                      onTap: () => _showMessageDetails(message),
+                    ),
+                  ).animate().fadeIn(delay: (index * 100).ms);
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  String _truncateText(String text) {
-    const maxLength = 50;
-    if (text.length <= maxLength) {
-      return text;
-    }
+  // Scan History Tab
+  Widget _buildScanHistoryTab() {
+    return Consumer<ScamProvider>(
+      builder: (context, scamProvider, child) {
+        if (scamProvider.recentScans.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'No scans yet',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 16,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Start by analyzing a suspicious SMS',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: scamProvider.recentScans.length,
+          itemBuilder: (context, index) {
+            final scan = scamProvider.recentScans[index];
+            final result = scan['result'] as ScamResult;
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              color: result.label == 'scam'
+                  ? Colors.red.shade50
+                  : Colors.green.shade50,
+              child: ListTile(
+                leading: Icon(
+                  result.label == 'scam' ? Icons.warning : Icons.check_circle,
+                  color: result.label == 'scam' ? Colors.red : Colors.green,
+                  size: 24,
+                ),
+                title: Text(
+                  _truncateText(scan['text'].toString()),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${result.confidence.toStringAsFixed(1)}% confidence'),
+                    Text(
+                      result.reason,
+                      style: const TextStyle(fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      _formatDate(scan['timestamp']),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                trailing: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: result.label == 'scam'
+                        ? Colors.red.shade100
+                        : Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    result.label.toUpperCase(),
+                    style: TextStyle(
+                      color: result.label == 'scam'
+                          ? Colors.red.shade700
+                          : Colors.green.shade700,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+                onTap: () => _showScanDetails(context, scan),
+              ),
+            ).animate().fadeIn(delay: (index * 100).ms);
+          },
+        );
+      },
+    );
+  }
+
+  // Utility Methods
+  String _truncateText(String text, [int maxLength = 50]) {
+    if (text.length <= maxLength) return text;
     return '${text.substring(0, maxLength)}...';
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 
   void _checkScam() {
@@ -466,7 +653,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _smsController.clear();
       _senderController.clear();
     } else {
-      // Show a snackbar or error message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter an SMS text to analyze'),
@@ -474,6 +660,94 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+  }
+
+  void _testMessage(SmsMessage message) {
+    context
+        .read<ScamProvider>()
+        .checkScam(message.body, sender: message.sender);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Testing message from ${message.sender}'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
+
+  void _showMessageDetails(SmsMessage message) {
+    final isDemoData = message.sender == 'MPESA' ||
+        message.sender == 'BANK_TZ' ||
+        message.sender == 'TIGO_MONEY';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title:
+            Text(message.sender.isNotEmpty ? message.sender : 'Unknown Sender'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (isDemoData) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.orange.shade700, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Demo Data',
+                      style: TextStyle(
+                        color: Colors.orange.shade700,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Text(
+              'Message:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            Text(message.body),
+            const SizedBox(height: 16),
+            Text(
+              'Received: ${_formatDate(message.date)}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _testMessage(message);
+            },
+            icon: const Icon(Icons.verified_user, size: 16),
+            label: const Text('Test Message'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showScanDetails(BuildContext context, Map<String, dynamic> scan) {
@@ -868,14 +1142,15 @@ class _HomeScreenState extends State<HomeScreen> {
       String resultsText = 'Recent Test Results:\n\n';
       for (int i = 0; i < recentResults.length; i++) {
         final result = recentResults[i];
-        resultsText +=
-            '${i + 1}. ${result.label.toUpperCase()} (${result.confidence.toStringAsFixed(1)}%) - ${result.sender}\n';
-        resultsText += '   ${result.reason}\n\n';
+        resultsText =
+            '$resultsText${i + 1}. ${result.label.toUpperCase()} (${result.confidence.toStringAsFixed(1)}%) - ${result.sender}\n';
+        resultsText = '$resultsText   ${result.reason}\n\n';
       }
 
-      resultsText += 'Statistics:\n';
-      resultsText += 'Total: ${stats['total_results']}\n';
-      resultsText += 'Average Confidence: ${stats['average_confidence']}%';
+      resultsText = '${resultsText}Statistics:\n';
+      resultsText = '${resultsText}Total: ${stats['total_results']}\n';
+      resultsText =
+          '${resultsText}Average Confidence: ${stats['average_confidence']}%';
 
       _showDialog('Test Results', resultsText);
     } catch (e) {
