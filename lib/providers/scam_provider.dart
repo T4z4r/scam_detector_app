@@ -18,7 +18,8 @@ class ScamProvider with ChangeNotifier {
   String? get error => _error;
   bool get hasError => _error != null;
 
-  Future<void> checkScam(String text, {String sender = ''}) async {
+  Future<void> checkScam(String text,
+      {String sender = '', bool forceApiCall = true}) async {
     // Clear previous error
     _error = null;
     _isLoading = true;
@@ -30,7 +31,8 @@ class ScamProvider with ChangeNotifier {
         throw Exception('Please enter an SMS text to analyze');
       }
 
-      final result = await ApiService.checkScam(text.trim(), sender.trim());
+      final result = await ApiService.checkScam(text.trim(), sender.trim(),
+          forceApiCall: forceApiCall);
 
       _recentScans.insert(0, {
         'text': text.trim(),
@@ -97,7 +99,8 @@ class ScamProvider with ChangeNotifier {
       // Don't analyze empty messages
       if (text.trim().isEmpty) return;
 
-      final result = await ApiService.checkScam(text.trim(), sender.trim());
+      final result = await ApiService.checkScam(text.trim(), sender.trim(),
+          forceApiCall: false);
 
       // Add to recent scans
       _recentScans.insert(0, {

@@ -21,7 +21,7 @@ class ApiService {
   static const int maxTextLength = 1000;
   static const int maxSenderLength = 50;
 
-  static Future<ScamResult> checkScam(String text, String sender) async {
+  static Future<ScamResult> checkScam(String text, String sender, {bool forceApiCall = false}) async {
     // Validate input according to API specification
     if (text.trim().isEmpty) {
       throw Exception('SMS text cannot be empty');
@@ -35,6 +35,101 @@ class ApiService {
       throw Exception('Sender name exceeds $maxSenderLength character limit');
     }
 
+    // For explicit scan requests, always try API first unless offline
+    if (forceApiCall) {
+      final isConnected = await InternetConnectionChecker().hasConnection;
+      if (isConnected) {
+        try {
+          final response = await http
+              .post(
+                Uri.parse('$baseUrl/scam/check'),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                },
+                body: jsonEncode({
+                  'text': text.trim(),
+                  'sender': sender.trim(),
+                }),
+              )
+              .timeout(const Duration(seconds: timeoutDuration));
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+
+            // Handle new API response format
+            final apiResponse = ApiResponse<ScamResult>.fromJson(data);
+            
+            if (apiResponse.isSuccess && apiResponse.data != null) {
+              final result = apiResponse.data!;
+              
+              // Store result in database
+              try {
+                final dbResult = ScamResultDB.fromScamResult(
+                  result,
+                  text,
+                  sender,
+                  detectionMethod: 'api',
+                );
+                await DatabaseHelper().insertScamResult(dbResult);
+              } catch (e) {
+                print('Failed to store result in database: $e');
+              }
+              
+              return result;
+            } else {
+              throw Exception('API returned error: ${apiResponse.message}');
+            }
+          } else if (response.statusCode == 422) {
+            // Validation error - parse error details
+            final data = jsonDecode(response.body);
+            final apiResponse = ApiResponse<ScamResult>.fromJson(data);
+            throw Exception('Validation error: ${apiResponse.message}');
+          } else {
+            throw Exception('HTTP ${response.statusCode}: API request failed');
+          }
+        } catch (e) {
+          // If API fails, fall back to local detection but indicate the failure
+          print('API call failed, using local detection fallback: $e');
+          final fallbackResult = LocalScamDetectionService.detectScam(text, sender);
+          
+          // Store fallback result in database
+          try {
+            final dbResult = ScamResultDB.fromScamResult(
+              fallbackResult,
+              text,
+              sender,
+              detectionMethod: 'local_fallback',
+            );
+            await DatabaseHelper().insertScamResult(dbResult);
+          } catch (dbError) {
+            print('Failed to store fallback result in database: $dbError');
+          }
+          
+          return fallbackResult;
+        }
+      } else {
+        // No internet connection, use local detection
+        final offlineResult = LocalScamDetectionService.detectScam(text, sender);
+        
+        // Store offline result in database
+        try {
+          final dbResult = ScamResultDB.fromScamResult(
+            offlineResult,
+            text,
+            sender,
+            detectionMethod: 'local_offline',
+          );
+          await DatabaseHelper().insertScamResult(dbResult);
+        } catch (e) {
+          print('Failed to store offline result in database: $e');
+        }
+        
+        return offlineResult;
+      }
+    }
+
+    // Default behavior (for automatic SMS monitoring): hybrid approach
     ScamResult finalResult = LocalScamDetectionService.detectScam(text, sender); // Default fallback
     String detectionMethod = 'unknown';
 
