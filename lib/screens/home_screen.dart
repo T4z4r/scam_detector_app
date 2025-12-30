@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -20,9 +21,12 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _smsController = TextEditingController();
   final TextEditingController _senderController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   bool _autoMonitoringEnabled = false;
   bool _showTestPanel = false;
   late TabController _tabController;
+  String _searchQuery = '';
+  Timer? _searchDebounceTimer;
 
   // Sample test messages for different scam types
   final List<Map<String, dynamic>> _sampleMessages = [
@@ -83,8 +87,20 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     _smsController.dispose();
     _senderController.dispose();
+    _searchController.dispose();
+    _searchDebounceTimer?.cancel();
     _tabController.dispose();
     super.dispose();
+  }
+
+  // Debounced search method to prevent keyboard from disappearing
+  void _debouncedSearch(String query) {
+    _searchDebounceTimer?.cancel();
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      setState(() {
+        _searchQuery = query.toLowerCase();
+      });
+    });
   }
 
   @override
@@ -283,6 +299,73 @@ class _HomeScreenState extends State<HomeScreen>
 
                 const SizedBox(height: 16),
 
+                // Quick Search for Scam Patterns
+                Card(
+                  elevation: 4,
+                  color: Colors.blue.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.search, color: Colors.blue.shade700),
+                            const SizedBox(width: 8),
+                            const Text(
+                              '🔍 Quick Pattern Search',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            labelText: 'Search scam patterns...',
+                            hintText: 'e.g., MPESA, reversal, crypto, loan',
+                            prefixIcon: const Icon(Icons.psychology),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      _searchDebounceTimer?.cancel();
+                                      setState(() {
+                                        _searchQuery = '';
+                                      });
+                                    },
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            _debouncedSearch(value);
+                          },
+                          onSubmitted: (value) {
+                            if (value.isNotEmpty) {
+                              _smsController.text = value;
+                              _senderController.text =
+                                  _detectSenderFromPattern(value);
+                            }
+                          },
+                        ),
+                        if (_searchQuery.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          _buildPatternSuggestions(),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
                 // Test Panel Toggle
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -425,91 +508,163 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-            // Messages list
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: messages.length,
-                itemBuilder: (context, index) {
-                  final message = messages[index];
-                  final isDemo = hasDemoData &&
-                      (message.sender == 'MPESA' ||
-                          message.sender == 'BANK_TZ' ||
-                          message.sender == 'TIGO_MONEY');
+            // Search bar for messages
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  labelText: 'Search messages...',
+                  hintText: 'Search by sender or content',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            _searchDebounceTimer?.cancel();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onChanged: (value) {
+                  _debouncedSearch(value);
+                },
+              ),
+            ),
 
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.blue.shade100,
-                        child: Text(
-                          message.sender.isNotEmpty
-                              ? message.sender[0].toUpperCase()
-                              : '?',
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      title: Text(
-                        message.sender.isNotEmpty
-                            ? message.sender
-                            : 'Unknown Sender',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            // Filter messages based on search query
+            Expanded(
+              child: Builder(
+                builder: (context) {
+                  final filteredMessages = _searchQuery.isEmpty
+                      ? messages
+                      : messages.where((message) {
+                          return message.sender
+                                  .toLowerCase()
+                                  .contains(_searchQuery) ||
+                              message.body.toLowerCase().contains(_searchQuery);
+                        }).toList();
+
+                  if (filteredMessages.isEmpty && _searchQuery.isNotEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const SizedBox(height: 4),
+                          Icon(Icons.search_off,
+                              size: 64, color: Colors.grey.shade300),
+                          const SizedBox(height: 16),
                           Text(
-                            _truncateText(message.body, 100),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _formatDate(message.date),
+                            'No messages found',
                             style: TextStyle(
-                              fontSize: 12,
                               color: Colors.grey.shade600,
+                              fontSize: 16,
                             ),
                           ),
-                          if (isDemo) ...[
-                            const SizedBox(height: 2),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade100,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                              child: Text(
-                                'Demo',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.orange.shade700,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Try a different search term',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 14,
                             ),
-                          ],
+                          ),
                         ],
                       ),
-                      trailing: ElevatedButton.icon(
-                        onPressed: () => _testMessage(message),
-                        icon: const Icon(Icons.verified_user, size: 16),
-                        label: const Text('Test'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade600,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: filteredMessages.length,
+                    itemBuilder: (context, index) {
+                      final message = filteredMessages[index];
+                      final isDemo = hasDemoData &&
+                          (message.sender == 'MPESA' ||
+                              message.sender == 'BANK_TZ' ||
+                              message.sender == 'TIGO_MONEY');
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.blue.shade100,
+                            child: Text(
+                              message.sender.isNotEmpty
+                                  ? message.sender[0].toUpperCase()
+                                  : '?',
+                              style: TextStyle(
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            message.sender.isNotEmpty
+                                ? message.sender
+                                : 'Unknown Sender',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text(
+                                _truncateText(message.body, 100),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _formatDate(message.date),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              if (isDemo) ...[
+                                const SizedBox(height: 2),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade100,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  child: Text(
+                                    'Demo',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.orange.shade700,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          trailing: ElevatedButton.icon(
+                            onPressed: () => _testMessage(message),
+                            icon: const Icon(Icons.verified_user, size: 16),
+                            label: const Text('Test'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.shade600,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                            ),
+                          ),
+                          onTap: () => _showMessageDetails(message),
                         ),
-                      ),
-                      onTap: () => _showMessageDetails(message),
-                    ),
-                  ).animate().fadeIn(delay: (index * 100).ms);
+                      ).animate().fadeIn(delay: (index * 100).ms);
+                    },
+                  );
                 },
               ),
             ),
@@ -551,72 +706,163 @@ class _HomeScreenState extends State<HomeScreen>
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: scamProvider.recentScans.length,
-          itemBuilder: (context, index) {
-            final scan = scamProvider.recentScans[index];
-            final result = scan['result'] as ScamResult;
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              color: result.label == 'scam'
-                  ? Colors.red.shade50
-                  : Colors.green.shade50,
-              child: ListTile(
-                leading: Icon(
-                  result.label == 'scam' ? Icons.warning : Icons.check_circle,
-                  color: result.label == 'scam' ? Colors.red : Colors.green,
-                  size: 24,
-                ),
-                title: Text(
-                  _truncateText(scan['text'].toString()),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${result.confidence.toStringAsFixed(1)}% confidence'),
-                    Text(
-                      result.reason,
-                      style: const TextStyle(fontSize: 11),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      _formatDate(scan['timestamp']),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-                trailing: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: result.label == 'scam'
-                        ? Colors.red.shade100
-                        : Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    result.label.toUpperCase(),
-                    style: TextStyle(
-                      color: result.label == 'scam'
-                          ? Colors.red.shade700
-                          : Colors.green.shade700,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
-                    ),
+        return Column(
+          children: [
+            // Search bar for history
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  labelText: 'Search scan history...',
+                  hintText: 'Search by text, sender, or result',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            _searchDebounceTimer?.cancel();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onTap: () => _showScanDetails(context, scan),
+                onChanged: (value) {
+                  _debouncedSearch(value);
+                },
               ),
-            ).animate().fadeIn(delay: (index * 100).ms);
-          },
+            ),
+
+            // Filter and display scans
+            Expanded(
+              child: Builder(
+                builder: (context) {
+                  final filteredScans = _searchQuery.isEmpty
+                      ? scamProvider.recentScans
+                      : scamProvider.recentScans.where((scan) {
+                          final result = scan['result'] as ScamResult;
+                          final text = scan['text'].toString().toLowerCase();
+                          final sender =
+                              scan['sender'].toString().toLowerCase();
+                          final reason = result.reason.toLowerCase();
+                          final label = result.label.toLowerCase();
+
+                          return text.contains(_searchQuery) ||
+                              sender.contains(_searchQuery) ||
+                              reason.contains(_searchQuery) ||
+                              label.contains(_searchQuery);
+                        }).toList();
+
+                  if (filteredScans.isEmpty && _searchQuery.isNotEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_off,
+                              size: 64, color: Colors.grey.shade300),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No scans found',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Try a different search term',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: filteredScans.length,
+                    itemBuilder: (context, index) {
+                      final scan = filteredScans[index];
+                      final result = scan['result'] as ScamResult;
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        color: result.label == 'scam'
+                            ? Colors.red.shade50
+                            : Colors.green.shade50,
+                        child: ListTile(
+                          leading: Icon(
+                            result.label == 'scam'
+                                ? Icons.warning
+                                : Icons.check_circle,
+                            color: result.label == 'scam'
+                                ? Colors.red
+                                : Colors.green,
+                            size: 24,
+                          ),
+                          title: Text(
+                            _truncateText(scan['text'].toString()),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  '${result.confidence.toStringAsFixed(1)}% confidence'),
+                              Text(
+                                result.reason,
+                                style: const TextStyle(fontSize: 11),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                _formatDate(scan['timestamp']),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: result.label == 'scam'
+                                  ? Colors.red.shade100
+                                  : Colors.green.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              result.label.toUpperCase(),
+                              style: TextStyle(
+                                color: result.label == 'scam'
+                                    ? Colors.red.shade700
+                                    : Colors.green.shade700,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                          onTap: () => _showScanDetails(context, scan),
+                        ),
+                      ).animate().fadeIn(delay: (index * 100).ms);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
     );
@@ -1204,5 +1450,127 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ) ??
         false;
+  }
+
+  // Helper method to detect sender from pattern
+  String _detectSenderFromPattern(String pattern) {
+    final lowerPattern = pattern.toLowerCase();
+    if (lowerPattern.contains('mpesa') || lowerPattern.contains('m-pesa')) {
+      return 'MPESA';
+    } else if (lowerPattern.contains('bank') ||
+        lowerPattern.contains('account')) {
+      return 'BANK';
+    } else if (lowerPattern.contains('tigo') ||
+        lowerPattern.contains('airtel')) {
+      return 'TELECOM';
+    } else if (lowerPattern.contains('crypto') ||
+        lowerPattern.contains('bitcoin')) {
+      return 'CRYPTO';
+    } else if (lowerPattern.contains('loan') ||
+        lowerPattern.contains('credit')) {
+      return 'LOAN';
+    } else if (lowerPattern.contains('prize') ||
+        lowerPattern.contains('winner')) {
+      return 'PRIZE';
+    }
+    return '';
+  }
+
+  // Build pattern suggestions for Quick Scan
+  Widget _buildPatternSuggestions() {
+    final suggestions = [
+      {
+        'pattern': 'mpesa reversal',
+        'description': 'M-PESA money reversal scam'
+      },
+      {
+        'pattern': 'bank account suspended',
+        'description': 'Bank account verification scam'
+      },
+      {
+        'pattern': 'crypto investment',
+        'description': 'Cryptocurrency investment scam'
+      },
+      {'pattern': 'loan approved', 'description': 'Fake loan approval scam'},
+      {
+        'pattern': 'congratulations winner',
+        'description': 'Prize/lottery scam'
+      },
+      {'pattern': 'urgent verify', 'description': 'Urgent verification scam'},
+    ];
+
+    final filteredSuggestions = suggestions.where((suggestion) {
+      return suggestion['pattern']!.toLowerCase().contains(_searchQuery) ||
+          suggestion['description']!.toLowerCase().contains(_searchQuery);
+    }).toList();
+
+    if (filteredSuggestions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Common Scam Patterns:',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        ...filteredSuggestions
+            .map((suggestion) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: InkWell(
+                    onTap: () {
+                      _smsController.text = suggestion['pattern']!;
+                      _senderController.text =
+                          _detectSenderFromPattern(suggestion['pattern']!);
+                      _searchController.clear();
+                      _searchDebounceTimer?.cancel();
+                      setState(() {
+                        _searchQuery = '';
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.lightbulb,
+                              size: 16, color: Colors.blue.shade700),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  suggestion['pattern']!,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  suggestion['description']!,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ))
+            .toList(),
+      ],
+    );
   }
 }
