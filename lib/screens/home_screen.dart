@@ -24,37 +24,43 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Map<String, dynamic>> _sampleMessages = [
     {
       'title': 'M-Pesa Scam',
-      'message': 'MPESA REVERSAL: You have received Ksh 5000. Click here to confirm: bit.ly/mpesa-reversal',
+      'message':
+          'MPESA REVERSAL: You have received Ksh 5000. Click here to confirm: bit.ly/mpesa-reversal',
       'expected': 'scam',
       'color': Colors.red,
     },
     {
       'title': 'Loan Scam',
-      'message': 'Congratulations! Your loan of Tsh 1,000,000 has been approved. Apply now at www.fake-loans.com',
+      'message':
+          'Congratulations! Your loan of Tsh 1,000,000 has been approved. Apply now at www.fake-loans.com',
       'expected': 'scam',
       'color': Colors.red,
     },
     {
       'title': 'Crypto Scam',
-      'message': 'Earn 300% returns on Bitcoin investment. Register now for guaranteed profits!',
+      'message':
+          'Earn 300% returns on Bitcoin investment. Register now for guaranteed profits!',
       'expected': 'suspicious',
       'color': Colors.orange,
     },
     {
       'title': 'Bank Scam',
-      'message': 'URGENT: Your bank account is suspended. Verify your identity immediately.',
+      'message':
+          'URGENT: Your bank account is suspended. Verify your identity immediately.',
       'expected': 'scam',
       'color': Colors.red,
     },
     {
       'title': 'Legitimate Message',
-      'message': 'Hello friend, hope you are doing well. Let\'s meet for lunch tomorrow.',
+      'message':
+          'Hello friend, hope you are doing well. Let\'s meet for lunch tomorrow.',
       'expected': 'legitimate',
       'color': Colors.green,
     },
     {
       'title': 'Prize Scam',
-      'message': 'Congratulations! You have won 10000 in our lottery. Claim now!',
+      'message':
+          'Congratulations! You have won 10000 in our lottery. Claim now!',
       'expected': 'suspicious',
       'color': Colors.orange,
     },
@@ -127,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // Main Content Area
                 Expanded(
-                  child: Padding(
+                  child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       children: [
@@ -235,8 +241,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   _showTestPanel = !_showTestPanel;
                                 });
                               },
-                              icon: Icon(_showTestPanel ? Icons.hide_source : Icons.science),
-                              label: Text(_showTestPanel ? 'Hide Tests' : '🧪 Show Tests'),
+                              icon: Icon(_showTestPanel
+                                  ? Icons.hide_source
+                                  : Icons.science),
+                              label: Text(_showTestPanel
+                                  ? 'Hide Tests'
+                                  : '🧪 Show Tests'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue.shade600,
                                 foregroundColor: Colors.white,
@@ -251,164 +261,162 @@ class _HomeScreenState extends State<HomeScreen> {
                           _buildTestPanel(),
                         ],
 
+                        const SizedBox(height: 16),
+
                         // Recent Scans Section
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              children: [
-                                // Header
-                                Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text(
-                                        'Recent Scans',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          child: Column(
+                            children: [
+                              // Header
+                              Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Recent Scans',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                      TextButton(
-                                        onPressed: scamProvider
-                                                .recentScans.isEmpty
-                                            ? null
-                                            : () => scamProvider.clearHistory(),
-                                        child: const Text('Clear All'),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                    TextButton(
+                                      onPressed: scamProvider
+                                              .recentScans.isEmpty
+                                          ? null
+                                          : () => scamProvider.clearHistory(),
+                                      child: const Text('Clear All'),
+                                    ),
+                                  ],
                                 ),
-                                const Divider(height: 1),
+                              ),
+                              const Divider(height: 1),
 
-                                // Content Area
-                                Expanded(
-                                  child: scamProvider.recentScans.isEmpty
-                                      ? const Center(
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.search,
-                                                size: 48,
+                              // Content Area
+                              SizedBox(
+                                height: 300, // Fixed height for scrollable list
+                                child: scamProvider.recentScans.isEmpty
+                                    ? const Center(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.search,
+                                              size: 48,
+                                              color: Colors.grey,
+                                            ),
+                                            SizedBox(height: 16),
+                                            Text(
+                                              'No scans yet',
+                                              style: TextStyle(
                                                 color: Colors.grey,
+                                                fontSize: 16,
                                               ),
-                                              SizedBox(height: 16),
-                                              Text(
-                                                'No scans yet',
-                                                style: TextStyle(
-                                                  color: Colors.grey,
-                                                  fontSize: 16,
-                                                ),
+                                            ),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              'Start by analyzing a suspicious SMS',
+                                              style: TextStyle(
+                                                color: Colors.grey,
+                                                fontSize: 14,
                                               ),
-                                              SizedBox(height: 8),
-                                              Text(
-                                                'Start by analyzing a suspicious SMS',
-                                                style: TextStyle(
-                                                  color: Colors.grey,
-                                                  fontSize: 14,
-                                                ),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ],
-                                          ),
-                                        )
-                                      : ListView.builder(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16),
-                                          itemCount:
-                                              scamProvider.recentScans.length,
-                                          itemBuilder: (context, index) {
-                                            final scan =
-                                                scamProvider.recentScans[index];
-                                            final result =
-                                                scan['result'] as ScamResult;
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    : ListView.builder(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16),
+                                        itemCount:
+                                            scamProvider.recentScans.length,
+                                        itemBuilder: (context, index) {
+                                          final scan =
+                                              scamProvider.recentScans[index];
+                                          final result =
+                                              scan['result'] as ScamResult;
 
-                                            return Card(
-                                              margin: const EdgeInsets.only(
-                                                  bottom: 8),
-                                              color: result.label == 'scam'
-                                                  ? Colors.red.shade50
-                                                  : Colors.green.shade50,
-                                              child: ListTile(
-                                                leading: Icon(
-                                                  result.label == 'scam'
-                                                      ? Icons.warning
-                                                      : Icons.check_circle,
+                                          return Card(
+                                            margin: const EdgeInsets.only(
+                                                bottom: 8),
+                                            color: result.label == 'scam'
+                                                ? Colors.red.shade50
+                                                : Colors.green.shade50,
+                                            child: ListTile(
+                                              leading: Icon(
+                                                result.label == 'scam'
+                                                    ? Icons.warning
+                                                    : Icons.check_circle,
+                                                color: result.label == 'scam'
+                                                    ? Colors.red
+                                                    : Colors.green,
+                                                size: 24,
+                                              ),
+                                              title: Text(
+                                                _truncateText(
+                                                    scan['text'].toString()),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              subtitle: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                      '${result.confidence.toStringAsFixed(1)}% confidence'),
+                                                  Text(
+                                                    result.reason,
+                                                    style: const TextStyle(
+                                                        fontSize: 11),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
+                                              trailing: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4),
+                                                decoration: BoxDecoration(
                                                   color: result.label == 'scam'
-                                                      ? Colors.red
-                                                      : Colors.green,
-                                                  size: 24,
+                                                      ? Colors.red.shade100
+                                                      : Colors.green.shade100,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
                                                 ),
-                                                title: Text(
-                                                  _truncateText(
-                                                      scan['text'].toString()),
-                                                  maxLines: 2,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                                subtitle: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                        '${result.confidence.toStringAsFixed(1)}% confidence'),
-                                                    Text(
-                                                      result.reason,
-                                                      style: const TextStyle(
-                                                          fontSize: 11),
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ],
-                                                ),
-                                                trailing: Container(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4),
-                                                  decoration: BoxDecoration(
+                                                child: Text(
+                                                  result.label.toUpperCase(),
+                                                  style: TextStyle(
                                                     color: result.label ==
                                                             'scam'
-                                                        ? Colors.red.shade100
-                                                        : Colors.green.shade100,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            4),
-                                                  ),
-                                                  child: Text(
-                                                    result.label.toUpperCase(),
-                                                    style: TextStyle(
-                                                      color: result.label ==
-                                                              'scam'
-                                                          ? Colors.red.shade700
-                                                          : Colors
-                                                              .green.shade700,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 10,
-                                                    ),
+                                                        ? Colors.red.shade700
+                                                        : Colors.green.shade700,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 10,
                                                   ),
                                                 ),
-                                                onTap: () => _showScanDetails(
-                                                    context, scan),
                                               ),
-                                            ).animate().fadeIn(
-                                                delay: (index * 100).ms);
-                                          },
-                                        ),
-                                ),
-                              ],
-                            ),
+                                              onTap: () => _showScanDetails(
+                                                  context, scan),
+                                            ),
+                                          )
+                                              .animate()
+                                              .fadeIn(delay: (index * 100).ms);
+                                        },
+                                      ),
+                              ),
+                            ],
                           ),
                         ),
+
+                        const SizedBox(height: 80), // Extra space for FAB
                       ],
                     ),
                   ),
@@ -509,7 +517,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
                 ElevatedButton.icon(
@@ -519,7 +528,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
                 ElevatedButton.icon(
@@ -529,7 +539,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
               ],
@@ -553,7 +564,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.purple.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
                 ElevatedButton.icon(
@@ -563,7 +575,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
                 ElevatedButton.icon(
@@ -573,7 +586,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
                 ElevatedButton.icon(
@@ -583,7 +597,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.teal.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
               ],
@@ -599,14 +614,18 @@ class _HomeScreenState extends State<HomeScreen> {
             ..._sampleMessages.map((sample) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: ElevatedButton.icon(
-                    onPressed: () => _testScamDetection(sample['message'] as String, sample['title'] as String),
-                    icon: Icon(Icons.verified_user, size: 16, color: sample['color'] as Color),
+                    onPressed: () => _testScamDetection(
+                        sample['message'] as String, sample['title'] as String),
+                    icon: Icon(Icons.verified_user,
+                        size: 16, color: sample['color'] as Color),
                     label: Text(sample['title'] as String),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: (sample['color'] as Color).withValues(alpha: 0.1),
+                      backgroundColor:
+                          (sample['color'] as Color).withValues(alpha: 0.1),
                       foregroundColor: sample['color'] as Color,
                       side: BorderSide(color: sample['color'] as Color),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                     ),
                   ),
                 )),
@@ -629,7 +648,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.indigo.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
                 ElevatedButton.icon(
@@ -639,7 +659,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey.shade600,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
               ],
@@ -657,7 +678,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'This is a test message for database insertion.',
         'TEST-SENDER',
       );
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ Test data inserted successfully!'),
@@ -673,14 +694,14 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final historyService = ScamHistoryService();
       final stats = await historyService.getStatistics();
-      
+
       _showDialog(
         'Database Statistics',
         'Total Results: ${stats['total_results']}\n'
-        'Starred Results: ${stats['starred_results']}\n'
-        'Average Confidence: ${stats['average_confidence']}%\n'
-        'Results by Label: ${stats['by_label']}\n'
-        'Results by Method: ${stats['by_method']}',
+            'Starred Results: ${stats['starred_results']}\n'
+            'Average Confidence: ${stats['average_confidence']}%\n'
+            'Results by Label: ${stats['by_label']}\n'
+            'Results by Method: ${stats['by_method']}',
       );
     } catch (e) {
       _showError('Failed to get statistics: $e');
@@ -688,12 +709,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _testDatabaseClear() async {
-    final confirmed = await _showConfirmationDialog('Clear all database records?');
+    final confirmed =
+        await _showConfirmationDialog('Clear all database records?');
     if (confirmed) {
       try {
         final historyService = ScamHistoryService();
         await historyService.deleteAllResults();
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ Database cleared successfully!'),
@@ -713,7 +735,7 @@ class _HomeScreenState extends State<HomeScreen> {
         body: 'This is a test of the basic notification functionality.',
         payload: 'basic_test',
       );
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ Basic notification sent!'),
@@ -728,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _testScamNotification() async {
     try {
       await NotificationService.testScamNotification();
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ Scam alert notification sent!'),
@@ -743,7 +765,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _testSuspiciousNotification() async {
     try {
       await NotificationService.testSuspiciousNotification();
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ Suspicious message notification sent!'),
@@ -758,7 +780,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _testScheduledNotification() async {
     try {
       await NotificationService.testScheduledNotification();
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ Scheduled notification set (appears in 5 seconds)!'),
@@ -773,13 +795,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _testScamDetection(String message, String title) async {
     try {
       final result = await ApiService.checkScam(message, 'TEST-SENDER');
-      
+
       _showDialog(
         'Test Result: $title',
         'Result: ${result.label.toUpperCase()}\n'
-        'Confidence: ${result.confidence.toStringAsFixed(1)}%\n'
-        'Reason: ${result.reason}\n'
-        'Alert: ${result.alert}',
+            'Confidence: ${result.confidence.toStringAsFixed(1)}%\n'
+            'Reason: ${result.reason}\n'
+            'Alert: ${result.alert}',
       );
     } catch (e) {
       _showError('Scam detection test failed: $e');
@@ -825,18 +847,19 @@ class _HomeScreenState extends State<HomeScreen> {
       final historyService = ScamHistoryService();
       final recentResults = await historyService.getRecentResults(limit: 5);
       final stats = await historyService.getStatistics();
-      
+
       String resultsText = 'Recent Test Results:\n\n';
       for (int i = 0; i < recentResults.length; i++) {
         final result = recentResults[i];
-        resultsText += '${i + 1}. ${result.label.toUpperCase()} (${result.confidence.toStringAsFixed(1)}%) - ${result.sender}\n';
+        resultsText +=
+            '${i + 1}. ${result.label.toUpperCase()} (${result.confidence.toStringAsFixed(1)}%) - ${result.sender}\n';
         resultsText += '   ${result.reason}\n\n';
       }
-      
+
       resultsText += 'Statistics:\n';
       resultsText += 'Total: ${stats['total_results']}\n';
       resultsText += 'Average Confidence: ${stats['average_confidence']}%';
-      
+
       _showDialog('Test Results', resultsText);
     } catch (e) {
       _showError('Failed to show test results: $e');
@@ -872,21 +895,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<bool> _showConfirmationDialog(String message) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Action'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Confirm Action'),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Confirm'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 }
