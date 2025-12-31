@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/services.dart';
 import '../models/call_log.dart';
 
@@ -9,40 +10,52 @@ class CallLogPlatformChannel {
   // Read actual call logs from device
   static Future<List<CallLogEntry>> readActualCallLogs({int limit = 50}) async {
     try {
-      final List<dynamic> result =
+      final String? result =
           await _channel.invokeMethod('readCallLogs', {'limit': limit});
 
-      List<CallLogEntry> callLogs = [];
-      for (var callLogData in result) {
-        // Handle the type casting safely since platform channel returns _Map<Object?, Object?>
-        final Map<String, dynamic> callLogMap = _safeCastToStringMap(callLogData);
-        
-        // Parse call type from string to enum
-        CallType callType;
-        final typeString = callLogMap['callType']?.toString().toLowerCase() ?? '';
-        switch (typeString) {
-          case 'incoming':
-            callType = CallType.incoming;
-            break;
-          case 'outgoing':
-            callType = CallType.outgoing;
-            break;
-          case 'missed':
-            callType = CallType.missed;
-            break;
-          default:
-            callType = CallType.incoming; // Default to incoming
-        }
+      if (result == null || result.isEmpty) {
+        return [];
+      }
 
-        callLogs.add(CallLogEntry(
-          phoneNumber: callLogMap['phoneNumber']?.toString() ?? '',
-          callerName: callLogMap['callerName']?.toString() ?? '',
-          callDate: DateTime.fromMillisecondsSinceEpoch(
-              callLogMap['callDate']?.toInt() ?? DateTime.now().millisecondsSinceEpoch),
-          duration: callLogMap['duration']?.toInt() ?? 0,
-          callType: callType,
-          isScamSuspected: callLogMap['isScamSuspected']?.toString().toLowerCase() == 'true',
-        ));
+      List<CallLogEntry> callLogs = [];
+      
+      // Parse the JSON response from Android
+      try {
+        final List<dynamic> jsonList = json.decode(result);
+        
+        for (var callLogData in jsonList) {
+          if (callLogData is Map<String, dynamic>) {
+            // Parse call type from string to enum
+            CallType callType;
+            final typeString = callLogData['callType']?.toString().toLowerCase() ?? '';
+            switch (typeString) {
+              case 'incoming':
+                callType = CallType.incoming;
+                break;
+              case 'outgoing':
+                callType = CallType.outgoing;
+                break;
+              case 'missed':
+                callType = CallType.missed;
+                break;
+              default:
+                callType = CallType.incoming; // Default to incoming
+            }
+
+            callLogs.add(CallLogEntry(
+              phoneNumber: callLogData['phoneNumber']?.toString() ?? '',
+              callerName: callLogData['callerName']?.toString() ?? '',
+              callDate: DateTime.fromMillisecondsSinceEpoch(
+                  callLogData['callDate']?.toInt() ?? DateTime.now().millisecondsSinceEpoch),
+              duration: callLogData['duration']?.toInt() ?? 0,
+              callType: callType,
+              isScamSuspected: callLogData['isScamSuspected']?.toString().toLowerCase() == 'true',
+            ));
+          }
+        }
+      } catch (parseError) {
+        print('Error parsing call log JSON: $parseError');
+        throw Exception('Failed to parse call log data: $parseError');
       }
 
       return callLogs;

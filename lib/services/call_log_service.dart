@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
 import '../models/call_log.dart';
-// import 'call_log_platform_channel.dart';
+import 'call_log_platform_channel.dart';
 // import 'demo_call_log_data.dart';
 
 class CallLogService {
@@ -34,8 +35,26 @@ class CallLogService {
   }
 
   static Future<bool> requestCallLogPermission() async {
-    final status = await Permission.phone.request();
-    return status.isGranted;
+    // For Android, call log permissions need special handling
+    // The permission_handler package doesn't directly support READ_CALL_LOG
+    // We'll request READ_PHONE_STATE as a fallback and handle the permission check
+    try {
+      // Request READ_PHONE_STATE permission as it's often required for call log access
+      final phoneStateStatus = await Permission.phone.request();
+      
+      if (phoneStateStatus.isGranted) {
+        return true;
+      } else if (phoneStateStatus.isPermanentlyDenied) {
+        // Open app settings for manual permission grant
+        await openAppSettings();
+        return false;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      print('Error requesting call log permission: $e');
+      return false;
+    }
   }
 
   // Get recent call logs from actual device
@@ -59,9 +78,8 @@ class CallLogService {
       
       // If we can't read real call logs, provide demo data with clear notification
       print('Unable to read real call logs from device. Using demo data for testing purposes.');
-      // final demoCallLogs = DemoCallLogData.getDemoCallLogs();
-      // return demoCallLogs.take(limit).toList();
-      return []; // Return empty list for now
+      final demoCallLogs = _getDemoCallLogs();
+      return demoCallLogs.take(limit).toList();
       
     } catch (e) {
       throw Exception('Failed to access call logs: $e');
@@ -71,14 +89,26 @@ class CallLogService {
   // Placeholder for actual call log reading implementation
   // This will be replaced with platform channel implementation
   static Future<List<CallLogEntry>> _readActualCallLogsFromDevice(int limit) async {
-    // Use platform channel to read actual call logs from device
-    // return await CallLogPlatformChannel.readActualCallLogs(limit: limit);
-    return []; // Return empty list for now
+    try {
+      // Use platform channel to read actual call logs from device
+      final callLogs = await CallLogPlatformChannel.readActualCallLogs(limit: limit);
+      print('Successfully read ${callLogs.length} call logs from platform channel');
+      return callLogs;
+    } catch (e) {
+      print('Failed to read call logs from platform channel: $e');
+      return []; // Return empty list for now
+    }
   }
 
   static Future<bool> checkCallLogPermissionStatus() async {
-    final status = await Permission.phone.status;
-    return status.isGranted;
+    try {
+      // Check READ_PHONE_STATE permission as a proxy for call log access
+      final status = await Permission.phone.status;
+      return status.isGranted;
+    } catch (e) {
+      print('Error checking call log permission status: $e');
+      return false;
+    }
   }
 
   static Future<void> openCallLogSettings() async {
@@ -194,5 +224,52 @@ class CallLogService {
       log.phoneNumber.toLowerCase().contains(lowerQuery) ||
       log.callerName.toLowerCase().contains(lowerQuery)
     ).toList();
+  }
+
+  // Get demo call logs for testing when real call logs cannot be accessed
+  static List<CallLogEntry> _getDemoCallLogs() {
+    final now = DateTime.now();
+    return [
+      CallLogEntry(
+        phoneNumber: "0701234567",
+        callerName: "John Doe",
+        callDate: now.subtract(const Duration(minutes: 30)),
+        duration: 120,
+        callType: CallType.incoming,
+        isScamSuspected: false,
+      ),
+      CallLogEntry(
+        phoneNumber: "0755555555",
+        callerName: "Suspected Scam Caller",
+        callDate: now.subtract(const Duration(hours: 2)),
+        duration: 0,
+        callType: CallType.missed,
+        isScamSuspected: true,
+      ),
+      CallLogEntry(
+        phoneNumber: "0711111111",
+        callerName: "Unknown",
+        callDate: now.subtract(const Duration(hours: 4)),
+        duration: 45,
+        callType: CallType.outgoing,
+        isScamSuspected: true,
+      ),
+      CallLogEntry(
+        phoneNumber: "0709876543",
+        callerName: "Jane Smith",
+        callDate: now.subtract(const Duration(days: 1)),
+        duration: 300,
+        callType: CallType.incoming,
+        isScamSuspected: false,
+      ),
+      CallLogEntry(
+        phoneNumber: "Private",
+        callerName: "Private Number",
+        callDate: now.subtract(const Duration(days: 2)),
+        duration: 0,
+        callType: CallType.missed,
+        isScamSuspected: true,
+      ),
+    ];
   }
 }
